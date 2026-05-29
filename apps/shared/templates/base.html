@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeakUp - Plataforma de Aprendizaje B1</title>
+    
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'shared/css/global.css' %}">
+</head>
+<body>
+
+    <div class="app-container">
+        {% if request.resolver_match.namespace != 'authentication' %}
+        <aside class="sidebar">
+            <div class="sidebar-top">
+                <div class="logo-section">
+                    <div class="logo-icon">S</div>
+                    <span class="logo-text">SpeakUp</span>
+                </div>
+                
+                <nav class="nav-menu">
+                    <a href="{% url 'progress:dashboard' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:dashboard' %}active{% endif %}">
+                        <span>📊</span> Mi Dashboard
+                    </a>
+                    <a href="{% url 'diagnosis:welcome' %}" class="nav-item {% if request.resolver_match.namespace == 'diagnosis' %}active{% endif %}">
+                        <span>🎯</span> Test Diagnóstico
+                    </a>
+                    <a href="#" class="nav-item disabled">
+                        <span>📖</span> Vocabulario (A1-B1)
+                    </a>
+                    <a href="#" class="nav-item disabled">
+                        <span>🎵</span> Actividades LRC
+                    </a>
+                </nav>
+            </div>
+
+            <div class="sidebar-footer">
+                {% if request.user.is_authenticated %}
+                    <div class="user-badge">
+                        <div class="user-avatar">
+                            {{ request.user.username|slice:":2"|upper }}
+                        </div>
+                        <div class="user-info">
+                            <span class="user-name">{{ request.user.username }}</span>
+                            <span class="user-role">Estudiante</span>
+                        </div>
+                    </div>
+                {% endif %}
+                <a href="{% url 'authentication:logout' %}" class="btn-logout">
+                    Cerrar sesión 🚪
+                </a>
+            </div>
+        </aside>
+        {% endif %}
+
+        <main class="main-content">
+            {% block content %}
+            {% endblock content %}
+        </main>
+    </div>
+
+</body>
+</html>

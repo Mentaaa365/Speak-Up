@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Usamos <section> para que tu regla CSS de flexbox en divs no rompa el centrado -->
+<section style="display: flex; align-items: flex-start; justify-content: center; min-height: 100%; background: var(--g50);">
+    <article style="max-width: 600px; width: 100%;">
+        
+        <header style="text-align: center; margin-bottom: 24px;">
+            <div style="font-size: 56px; margin-bottom: 10px;">🏆</div>
+            <h1 style="font-size: 26px; font-weight: 800; color: var(--secondary); margin: 0 0 6px 0;">¡Felicidades!</h1>
+            <p style="font-size: 14px; color: var(--g500); margin: 0; font-weight: 500;">Has aprobado el examen de certificación B1.</p>
+        </header>
+
+        <!-- Tarjeta del Certificado -->
+        <section style="border: 2px solid var(--secondary); border-radius: 18px; padding: 32px 28px; margin-bottom: 20px; background: linear-gradient(135deg, #F0FDF4, #ECFDF5); box-shadow: 0 8px 24px rgba(16, 185, 129, 0.1);">
+            
+            <header style="text-align: center; margin-bottom: 24px;">
+                <span style="display: inline-block; background: var(--secondary); color: #FFFFFF; font-size: 12px; font-weight: 800; padding: 6px 18px; border-radius: 20px; margin-bottom: 12px; letter-spacing: 0.05em;">CERTIFICADO DIGITAL VERIFICABLE</span>
+                <p style="font-size: 30px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0;">Nivel B1 — MCER</p>
+                <p style="font-size: 22px; font-weight: 700; color: var(--g700); margin: 0 0 6px 0;">{{ request.user.get_full_name|default:request.user.username }}</p>
+                <p style="font-size: 14px; color: var(--g500); margin: 0; font-weight: 600;">UNEMI — Milagro, Ecuador</p>
+            </header>
+
+            <!-- Datos del Certificado usando Grid -->
+            <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 14px; margin-bottom: 24px;">
+                <article style="background: rgba(255,255,255,0.7); border-radius: 10px; padding: 12px; text-align: center;">
+                    <p style="font-size: 11px; font-weight: 600; color: var(--g500); margin: 0 0 4px 0;">Fecha</p>
+                    <p style="font-size: 14px; font-weight: 800; color: var(--g800); margin: 0;">{% now "d/m/Y" %}</p>
+                </article>
+                <article style="background: rgba(255,255,255,0.7); border-radius: 10px; padding: 12px; text-align: center;">
+                    <p style="font-size: 11px; font-weight: 600; color: var(--g500); margin: 0 0 4px 0;">Nivel</p>
+                    <p style="font-size: 14px; font-weight: 800; color: var(--g800); margin: 0;">B1 MCER</p>
+                </article>
+                <article style="background: rgba(255,255,255,0.7); border-radius: 10px; padding: 12px; text-align: center;">
+                    <p style="font-size: 11px; font-weight: 600; color: var(--g500); margin: 0 0 4px 0;">Institución</p>
+                    <p style="font-size: 14px; font-weight: 800; color: var(--g800); margin: 0;">UNEMI</p>
+                </article>
+                <article style="background: rgba(255,255,255,0.7); border-radius: 10px; padding: 12px; text-align: center;">
+                    <p style="font-size: 11px; font-weight: 600; color: var(--g500); margin: 0 0 4px 0;">Puntaje</p>
+                    <p style="font-size: 14px; font-weight: 800; color: var(--g800); margin: 0;">87%</p>
+                </article>
+            </section>
+
+            <!-- Verificación QR (evitando el div flexbox) -->
+            <aside style="background: #FFFFFF; border-radius: 12px; padding: 16px; border: 1px solid var(--g200); display: flex; gap: 16px; align-items: center;">
+                <!-- Dejamos el icono de QR como bloque estático -->
+                <div style="width: 80px; height: 80px; background: var(--g100); border: 1px solid var(--g200); border-radius: 8px; font-size: 36px; text-align: center; line-height: 80px; flex-shrink: 0;">
+                    📱
+                </div>
+                <div>
+                    <p style="font-size: 13px; font-weight: 700; color: var(--g700); margin: 0 0 4px 0;">Código QR de verificación</p>
+                    <p style="font-size: 13.5px; font-weight: 700; color: var(--primary); margin: 0 0 4px 0;">speakup.ec/verificar</p>
+                    <p style="font-size: 12px; color: var(--g400); margin: 0; font-weight: 500;">Verifica la autenticidad de este certificado</p>
+                </div>
+            </aside>
+            
+        </section>
+
+        <!-- Alerta y Botones de Acción -->
+        <aside style="background: var(--g100); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+            <span style="font-size: 16px;">📄</span>
+            <p style="font-size: 12.5px; color: var(--g600); font-weight: 600; margin: 0;">El certificado se generará automáticamente en PDF.</p>
+        </aside>
+
+        <button style="width: 100%; padding: 13px 20px; border-radius: 9px; border: none; background: var(--secondary); color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 10px; transition: background 0.2s;">
+            ⬇️ Descargar certificado PDF
+        </button>
+        <a href="{% url 'progress:dashboard' %}" style="display: block; width: 100%; padding: 12px 20px; border-radius: 9px; border: 1.5px solid var(--g300); background: transparent; color: var(--g600); font-size: 14.5px; font-weight: 700; text-align: center; text-decoration: none; box-sizing: border-box; transition: all 0.2s;">
+            Ir al Dashboard
+        </a>
+        
+    </article>
+</section>
+{% endblock content %}

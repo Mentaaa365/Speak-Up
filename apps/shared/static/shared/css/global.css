@@ -189,7 +189,7 @@ body {
 }
 
 /* ==========================================================================
-   📱 RESPONSIVIDAD PARA CELULARES Y TABLETS (Actualizado)
+   📱 RESPONSIVIDAD PARA CELULARES Y TABLETS (Corregido para tu HTML)
    ========================================================================== */
 @media (max-width: 768px) {
     .app-container {
@@ -200,25 +200,35 @@ body {
         overflow-y: auto;
     }
 
+    /* 1. La barra se vuelve una cabecera delgada arriba */
     .sidebar {
         width: 100%;
         height: auto;
         border-right: none;
         border-bottom: 1px solid var(--g200);
         padding: 16px 20px;
-        flex-direction: row;
-        align-items: center;
+        display: flex;
         position: sticky;
         top: 0;
         z-index: 1000;
+    }
+
+    /* 🔥 EL SECRETO: Esto es lo que le faltaba a tu CSS para alinear el logo */
+    .sidebar-top {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        flex-direction: row !important;
     }
 
     .logo-section {
         margin-bottom: 0;
     }
 
+    /* Oculta los menús para no tapar la pantalla del celular */
     .nav-menu, .sidebar-footer {
-        display: none; /* Oculta menús densos en pantallas móviles */
+        display: none; 
     }
 
     .main-content {
@@ -227,28 +237,24 @@ body {
     }
 
     /* ==========================================================================
-       🚨 CORRECCIÓN DE FUERZA BRUTA PARA CONTENIDOS INTERNOS INDOCILITADOS
+       🚨 CORRECCIÓN DE FUERZA BRUTA PARA TARJETAS DEL DASHBOARD
        ========================================================================== */
     
-    /* 1. Si el Dashboard o las vistas usan Grids (cuadrículas), las obliga a ser de 1 sola columna */
     .main-content div[style*="display: grid"] {
         grid-template-columns: 1fr !important;
         gap: 16px !important;
     }
 
-    /* 2. Si las vistas usan filas Flex (como el reproductor de música o cabeceras), las apila verticalmente */
     .main-content div[style*="display: flex"]:not([id="master-play-btn"]) {
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 16px !important;
     }
     
-    /* Mantiene los controles del reproductor alineados horizontalmente para que no se rompan */
-    #master-play-btn, .sidebar, .logo-section, .user-badge {
+    #master-play-btn, .logo-section, .user-badge {
         flex-direction: row !important;
     }
 
-    /* 3. Ajuste elástico para que las tarjetas de Login, Registro y exámenes no se desborden */
     .main-content div[style*="background: #FFFFFF"], 
     .main-content div[style*="background: white"] {
         max-width: 100% !important;

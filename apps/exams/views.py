@@ -1,3 +1,8 @@
-from django.shortcuts import render
+from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 
-# Create your views here.
+class CertificateView(LoginRequiredMixin, TemplateView):
+    """
+    Muestra la plantilla del certificado B1.
+    """
+    template_name = 'exams/certificate.html'

@@ -1,4 +1,5 @@
 from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin  # <-- Esta es la línea que falta
 
 class DashboardView(TemplateView):
     # Ruta del template actualizada
@@ -30,3 +31,10 @@ class DashboardView(TemplateView):
             # ... (Copia aquí la misma lista de 'niveles' con los datos mock de la respuesta anterior) ...
         ]
         return context
+    
+
+class ProgressDetailView(LoginRequiredMixin, TemplateView):
+    """
+    Muestra el desglose analítico con las 3 barras de progreso independientes (RF-07).
+    """
+    template_name = 'progress/progress_detail.html'

@@ -21,17 +21,18 @@
                 
                 <nav class="nav-menu">
                     <a href="{% url 'progress:dashboard' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:dashboard' %}active{% endif %}">
-                        <span>📊</span> Mi Dashboard
+                        <span>🏠</span> Dashboard
                     </a>
-                    <a href="{% url 'diagnosis:welcome' %}" class="nav-item {% if request.resolver_match.namespace == 'diagnosis' %}active{% endif %}">
-                        <span>🎯</span> Test Diagnóstico
+                    <a href="{% url 'learning:vocabulary' %}" class="nav-item {% if request.resolver_match.namespace == 'learning' %}active{% endif %}">
+                        <span>📚</span> Mi Nivel
                     </a>
-                    <a href="#" class="nav-item disabled">
-                        <span>📖</span> Vocabulario (A1-B1)
+                    <a href="{% url 'progress:detail' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:detail' %}active{% endif %}">
+                        <span>📊</span> Progreso
                     </a>
-                    <a href="#" class="nav-item disabled">
-                        <span>🎵</span> Actividades LRC
+                    <a href="{% url 'exams:certificate' %}" class="nav-item {% if request.resolver_match.view_name == 'exams:certificate' %}active{% endif %}" class="nav-item">
+                        <span>🏆</span> Certificados
                     </a>
+                    
                 </nav>
             </div>
 
@@ -39,16 +40,16 @@
                 {% if request.user.is_authenticated %}
                     <div class="user-badge">
                         <div class="user-avatar">
-                            {{ request.user.username|slice:":2"|upper }}
+                            👤
                         </div>
                         <div class="user-info">
-                            <span class="user-name">{{ request.user.username }}</span>
-                            <span class="user-role">Estudiante</span>
+                            <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+                            <span class="user-role">Nivel A2 activo</span>
                         </div>
                     </div>
                 {% endif %}
                 <a href="{% url 'authentication:logout' %}" class="btn-logout">
-                    Cerrar sesión 🚪
+                    Cerrar sesión
                 </a>
             </div>
         </aside>

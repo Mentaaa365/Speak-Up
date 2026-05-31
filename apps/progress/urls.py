@@ -5,4 +5,5 @@ app_name = 'progress' # Actualizado
 
 urlpatterns = [
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
+    path('detail/', views.ProgressDetailView.as_view(), name='detail'),
 ]

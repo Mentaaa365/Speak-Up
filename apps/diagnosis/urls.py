@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from .views import APIPreguntasDiagnosticoView, DiagnosisResultsView
+
 
 # 1. Asegúrate de que el namespace esté en inglés y con comillas
 app_name = 'diagnosis'
@@ -13,5 +15,7 @@ urlpatterns = [
     path('test/', views.DiagnosisTestView.as_view(), name='test_run'),
     
     # Marcador para la pantalla de resultados finales
-    path('results/', views.DummyView.as_view(), name='results'),
+    path('results/', DiagnosisResultsView.as_view(), name='results'),
+
+    path('api/get-questions/', APIPreguntasDiagnosticoView.as_view(), name='api_get_questions'),
 ]

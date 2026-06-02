@@ -1,0 +1,61 @@
+level,type,text,audio_text,target_phrase,opt1,opt2,opt3,opt4,correct_opt
+A1,CHOICE,"Choose the correct option:<br><br>'I _____ from Ecuador.'",,,am,are,is,be,1
+A1,CHOICE,"Choose the correct option:<br><br>'My brother _____ a car.'",,,have,has,having,to have,2
+A1,CHOICE,"Choose the correct option:<br><br>'_____ you like pizza?'",,,Does,Do,Are,Is,2
+A1,CHOICE,"Choose the correct option:<br><br>'We _____ playing tennis now.'",,,am,are,is,be,2
+A1,CHOICE,"Choose the correct option:<br><br>'She _____ up early every day.'",,,wake,wakes,waking,waked,2
+A1,CHOICE,"Choose the correct option:<br><br>'This is _____ book.'",,,my,me,mine,I,1
+A1,CHOICE,"Choose the correct option:<br><br>'They _____ at home yesterday.'",,,was,were,are,is,2
+A1,LISTENING,"Escucha y selecciona el medio de transporte:","I travel to work by bus.",,car,bus,train,bike,2
+A1,LISTENING,"Escucha y selecciona la comida:","I eat eggs for breakfast.",,bread,eggs,milk,cheese,2
+A1,LISTENING,"Escucha y selecciona el día de la semana:","Today is Monday.",,Sunday,Monday,Tuesday,Friday,2
+A1,LISTENING,"Escucha y selecciona el número:","I have three cats.",,two,three,four,five,2
+A1,LISTENING,"Escucha y selecciona el lugar:","She is in the kitchen.",,bedroom,kitchen,bathroom,garden,2
+A1,LISTENING,"Escucha y selecciona la emoción:","He is very happy.",,sad,angry,happy,tired,3
+A1,LISTENING,"Escucha y responde la hora:","The class starts at ten.",,nine,ten,eleven,eight,2
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Good morning.'</b>",,"Good morning",,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'My name is Ian.'</b>",,"My name is Ian",,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I like coffee.'</b>",,"I like coffee",,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'See you tomorrow.'</b>",,"See you tomorrow",,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Thank you very much.'</b>",,"Thank you very much",,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Where is the bathroom?'</b>",,"Where is the bathroom",,,,,
+A2,CHOICE,"Complete the sentence:<br><br>'I _____ to the beach last summer.'",,,go,went,gone,going,2
+A2,CHOICE,"Complete the sentence:<br><br>'She is _____ than her sister.'",,,tall,taller,tallest,more tall,2
+A2,CHOICE,"Complete the sentence:<br><br>'You _____ wear a uniform at school.'",,,must,should,can,might,1
+A2,CHOICE,"Complete the sentence:<br><br>'We have lived here _____ 2020.'",,,for,since,in,at,2
+A2,CHOICE,"Complete the sentence:<br><br>'If it rains, I _____ stay at home.'",,,will,would,am,do,1
+A2,CHOICE,"Complete the sentence:<br><br>'He _____ a shower when the phone rang.'",,,takes,took,was taking,has taken,3
+A2,CHOICE,"Complete the sentence:<br><br>'I don't have _____ money in my wallet.'",,,some,any,many,a lot,2
+A2,LISTENING,"Escucha y selecciona la actividad:","They are watching a movie tonight.",,playing sports,reading a book,watching a movie,cooking dinner,3
+A2,LISTENING,"Escucha y selecciona el lugar:","Let's meet at the train station.",,airport,train station,bus stop,taxi stand,2
+A2,LISTENING,"Escucha y selecciona el problema:","My computer is broken.",,phone is lost,car is broken,computer is broken,wallet is stolen,3
+A2,LISTENING,"Escucha y selecciona el trabajo:","My father works as an engineer.",,doctor,teacher,engineer,lawyer,3
+A2,LISTENING,"Escucha y selecciona la dirección:","Turn right at the traffic lights.",,turn left,go straight,turn right,stop,3
+A2,LISTENING,"Escucha y selecciona la frecuencia:","I usually exercise twice a week.",,every day,twice a week,once a month,never,2
+A2,LISTENING,"Escucha y selecciona la cantidad:","There are a few apples left.",,a lot of,a few,none,too many,2
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I would like to order a pizza.'</b>",,"I would like to order a pizza",,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'What time does the train arrive?'</b>",,"What time does the train arrive",,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Can you help me with my homework?'</b>",,"Can you help me with my homework",,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I have been learning English for two years.'</b>",,"I have been learning English for two years",,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'This is the best movie I have ever seen.'</b>",,"This is the best movie I have ever seen",,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'We need to buy some groceries.'</b>",,"We need to buy some groceries",,,,,
+B1,CHOICE,"Select the correct option:<br><br>'By the time we arrived, the show _____.'",,,has started,had started,started,starts,2
+B1,CHOICE,"Select the correct option:<br><br>'I'm not used _____ so early.'",,,to wake up,to waking up,wake up,waking up,2
+B1,CHOICE,"Select the correct option:<br><br>'The car _____ was stolen has been found.'",,,who,whom,which,whose,3
+B1,CHOICE,"Select the correct option:<br><br>'Unless you _____, you will fail the test.'",,,study,don't study,will study,won't study,1
+B1,CHOICE,"Select the correct option:<br><br>'He apologized for _____ late.'",,,be,being,to be,been,2
+B1,CHOICE,"Select the correct option:<br><br>'I wish I _____ speak French fluently.'",,,can,could,will,am able to,2
+B1,CHOICE,"Select the correct option:<br><br>'She asked me where _____.'",,,was I going,I was going,am I going,I am going,2
+B1,LISTENING,"Escucha y selecciona el tema principal:","The company announced a significant increase in profits this quarter.",,technology,sports,business,health,3
+B1,LISTENING,"Escucha y selecciona el consejo:","You had better see a doctor about that cough.",,take medicine,ignore it,see a doctor,drink water,3
+B1,LISTENING,"Escucha y selecciona la opinión:","I find abstract art absolutely fascinating.",,boring,confusing,fascinating,ugly,3
+B1,LISTENING,"Escucha y selecciona la condición:","If I had known, I would have helped you.",,He knew and helped,He didn't know but helped,He didn't know and didn't help,He knew but didn't help,3
+B1,LISTENING,"Escucha y selecciona la intención:","I'm planning to apply for a scholarship next semester.",,quit school,apply for a job,apply for a scholarship,travel abroad,3
+B1,LISTENING,"Escucha y selecciona la causa:","The flight was delayed due to severe weather conditions.",,mechanical failure,severe weather,staff strike,overbooking,2
+B1,LISTENING,"Escucha y selecciona el sentimiento:","I was completely overwhelmed by the amount of work.",,relaxed,overwhelmed,bored,excited,2
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Environmental protection should be our top priority.'</b>",,"Environmental protection should be our top priority",,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Despite the rain, the event was a huge success.'</b>",,"Despite the rain the event was a huge success",,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I'm looking forward to hearing from you soon.'</b>",,"I am looking forward to hearing from you soon",,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Technological advancements have completely changed our lives.'</b>",,"Technological advancements have completely changed our lives",,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'It is essential that everyone follows the safety guidelines.'</b>",,"It is essential that everyone follows the safety guidelines",,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'To be honest, I completely disagree with that statement.'</b>",,"To be honest I completely disagree with that statement",,,,,

@@ -11,7 +11,7 @@
 <body>
 
     <div class="app-container">
-        {% if request.resolver_match.namespace != 'authentication' %}
+        {% if request.resolver_match.namespace != 'authentication' and request.resolver_match.namespace != 'diagnosis' %}
         <aside class="sidebar">
             <div class="sidebar-top">
                 <div class="logo-section">

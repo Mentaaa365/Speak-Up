@@ -5,7 +5,7 @@
 <div style="max-width: 1000px; margin: 0 auto;">
     
     <div style="margin-bottom: 32px;">
-        <h1 style="font-size: 28px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0;">¡Hola de nuevo, {{ request.user.username }}! 👋</h1>
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0;">¡Hola de nuevo, {{ request.user.first_name|default:request.user.username }}! 👋</h1>
         <p style="font-size: 14px; color: var(--g500); margin: 0;">Monitorea tu avance académico y continúa tu preparación hacia el nivel B1.</p>
     </div>
 

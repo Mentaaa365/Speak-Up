@@ -3,10 +3,10 @@ from django.views.generic import TemplateView
 from django.shortcuts import redirect, render
 from django.contrib.auth import logout
 from django.contrib.auth.models import User  # <-- Importación vital para que funcione el registro
-from django.urls import reverse_lazy         # <-- Importación recomendada para redirecciones en LoginView
-import re
+from django.urls import reverse_lazy      # <-- Importación recomendada para redirecciones en LoginView
 from django.contrib import messages
-
+from .forms import RegistroForm
+from django.db import transaction
 
 class SpeakUpLoginView(LoginView):
     template_name = 'authentication/login.html'
@@ -26,40 +26,48 @@ class SpeakUpLoginView(LoginView):
 # VISTA DE REGISTRO ACTUALIZADA:
 class SpeakUpRegisterView(TemplateView):
     template_name = 'authentication/register.html'
-    
+
     def post(self, request, *args, **kwargs):
-        # 1. Cambiamos 'name' por 'first_name' para que coincida exactamente con tu HTML
-        nombre = request.POST.get('first_name')
-        correo = request.POST.get('email')
-        contrasena = request.POST.get('password')
-        institucion = request.POST.get('institution') # Capturamos la institución del HTML
+        form = RegistroForm(request.POST)
 
-        # 2. Validar que el nombre no tenga números
-        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', nombre):
-            messages.error(request, 'El nombre no puede contener números o símbolos.')
-            return render(request, self.template_name)
+        if form.is_valid():
+            nombre = form.cleaned_data['first_name']
+            correo = form.cleaned_data['email']
+            contrasena = form.cleaned_data['password']
+            institucion = form.cleaned_data['institution']
 
-        # 3. Validar si el correo ya existe
-        if User.objects.filter(username=correo).exists():
-            # Pasamos la variable que tu HTML necesita para mostrar el cuadro amarillo
-            return render(request, self.template_name, {'error_correo_duplicado': True})
+            try:
+                # 2. Envolvemos la creación en una transacción atómica
+                with transaction.atomic():
+                    nuevo_usuario = User.objects.create_user(
+                        username=correo,
+                        email=correo,
+                        password=contrasena,
+                        first_name=nombre
+                    )
+                    
+                    nuevo_usuario.perfil.institucion = institucion
+                    nuevo_usuario.perfil.save()
 
-        # 4. CREACIÓN ENCRIPTADA 
-        nuevo_usuario = User.objects.create_user(
-            username=correo,
-            email=correo,
-            password=contrasena,
-            first_name=nombre
-        )
-        
-        # 5. Guardar la institución en el Perfil
-        # (El perfil ya fue creado milisegundos atrás por las señales de models.py)
-        nuevo_usuario.perfil.institucion = institucion
-        nuevo_usuario.perfil.save()
+                # Si todo sale bien dentro del bloque `with`, redirigimos:
+                messages.success(request, '¡Registro exitoso! Por favor, inicia sesión.')
+                return redirect('authentication:login')
 
-        # 6. Redirigir al usuario al login
-        messages.success(request, '¡Registro exitoso! Por favor, inicia sesión.')
-        return redirect('authentication:login')
+            except Exception as e:
+                # Si algo falla en la base de datos, entra aquí y deshace la creación
+                messages.error(request, 'Ocurrió un error en el servidor al guardar tu cuenta. Intenta de nuevo.')
+                return render(request, self.template_name)
+                
+        else:
+            contexto = {}
+            
+            if 'first_name' in form.errors:
+                messages.error(request, form.errors['first_name'][0])
+                
+            if 'email' in form.errors:
+                contexto['error_correo_duplicado'] = True
+
+            return render(request, self.template_name, contexto)
 
 class DummyView(TemplateView):
     template_name = 'base.html'

@@ -141,3 +141,6 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 STATICFILES_DIRS = [
     BASE_DIR / "apps" / "shared" / "static",
 ]
+
+# Muestra los correos en la consola de la terminal en lugar de enviarlos por internet
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

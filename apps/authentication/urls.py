@@ -1,3 +1,4 @@
+# apps/authentication/urls.py
 from django.urls import path
 from django.urls import reverse_lazy
 from django.contrib.auth import views as auth_views
@@ -15,7 +16,10 @@ urlpatterns = [
     path('password-reset/', 
          auth_views.PasswordResetView.as_view(
              template_name='authentication/password_reset_form.html',
+             # Correo en texto plano (Respaldo)
              email_template_name='authentication/password_reset_email.html',
+             # 🔥 LA CLAVE: Correo con maquetación HTML gráfica (Prioridad)
+             html_email_template_name='authentication/password_reset_email.html',
              success_url=reverse_lazy('authentication:password_reset_done')
          ), 
          name='password_reset'),
@@ -41,13 +45,4 @@ urlpatterns = [
              template_name='authentication/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
-
-    path('password-reset/', 
-         auth_views.PasswordResetView.as_view(
-             template_name='authentication/password_reset_form.html',
-             # 🔥 LA CLAVE: Cambia a html_email_template_name para renderizar la maquetación gráfica
-             html_email_template_name='authentication/password_reset_email.html',
-             success_url=reverse_lazy('authentication:password_reset_done')
-         ), 
-         name='password_reset'),
 ]

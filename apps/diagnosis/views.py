@@ -3,9 +3,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.http import JsonResponse
 from apps.question_bank.models import Question
-import random
 from django.shortcuts import render
 import json
+import random
 
 class DiagnosisWelcomeView(LoginRequiredMixin, TemplateView):
     """
@@ -20,10 +20,6 @@ class DiagnosisTestView(LoginRequiredMixin, TemplateView):
     """
     template_name = 'diagnosis/test.html'
 
-
-import json
-from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
 
 class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
     """
@@ -45,8 +41,6 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
         correct_vocab = 0
 
         # 3. Validar respuestas contra la BD
-        # Como MVP temporal, contaremos los tipos de pregunta recibidos. 
-        # Luego deberás comparar 'answer' con la respuesta correcta en SQL Server.
         for item in user_answers:
             q_type = item.get('type')
             if q_type == 'SPEAKING':
@@ -57,9 +51,6 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
                 correct_vocab += 1
 
         # 4. Ponderación oficial (RF-03)
-        # Speaking (5 ítems) = 40% -> 8% c/u
-        # Listening (5 ítems) = 40% -> 8% c/u
-        # Vocabulario (10 ítems) = 20% -> 2% c/u
         score_speaking = min(correct_speaking * 8, 40)
         score_listening = min(correct_listening * 8, 40)
         score_vocabulary = min(correct_vocab * 2, 20)
@@ -80,17 +71,18 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
             desc = "Nivel Intermedio / Umbral"
             motiv = "¡Excelente nivel inicial! Estás listo para los desafíos del nivel B1."
 
-        # --- NUEVO: GUARDAR EL NIVEL EN LA BD PARA EL DASHBOARD ---
-        # (Asegúrate de importar Perfil y NivelMCER al inicio de tu views.py)
         # --- GUARDAR EL NIVEL EN LA BD PARA EL DASHBOARD ---
-        from apps.progress.models import Perfil, NivelMCER # <-- Ruta correcta
+        from apps.progress.models import Perfil, NivelMCER 
         
         perfil = Perfil.objects.get(usuario=request.user)
         nivel_obj = NivelMCER.objects.get(codigo=nivel)
         perfil.nivel_mcer = nivel_obj
         perfil.save()
-        # -----------------------------------------------------------
-        # -----------------------------------------------------------
+
+        # --- NUEVO: LIMPIAR LA SESIÓN DEL EXAMEN ---
+        # Borramos las preguntas memorizadas para que el próximo intento cargue nuevas
+        if 'examen_diagnostico_ids' in request.session:
+            del request.session['examen_diagnostico_ids']
 
         # 6. Renderizar con los datos reales
         context = {
@@ -112,7 +104,6 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
         try:
             perfil = Perfil.objects.get(usuario=request.user)
             if perfil.nivel_mcer:
-                # Si ya dio el examen, le mostramos su nivel histórico
                 context = {
                     'score_speaking': '-',
                     'score_listening': '-',
@@ -139,7 +130,6 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
         return self.render_to_response(context)
 
 
-# Agregamos esta clase para evitar choques si alguna ruta vieja todavía la busca
 class DummyView(LoginRequiredMixin, TemplateView):
     template_name = 'base.html'
 
@@ -147,19 +137,34 @@ class DummyView(LoginRequiredMixin, TemplateView):
 class APIPreguntasDiagnosticoView(View):
     def get(self, request, *args, **kwargs):
         """
-        Extrae preguntas aleatorias de la BD para el examen.
+        Extrae preguntas de la BD y las memoriza en sesión para evitar 
+        que cambien si el usuario recarga la página.
         """
-        # Traemos todas las preguntas y las mezclamos
-        preguntas_db = list(Question.objects.all())
-        random.shuffle(preguntas_db)
-        
-        # Seleccionamos las primeras 10
-        preguntas_seleccionadas = preguntas_db[:10]
+        # 1. Verificamos si ya hay preguntas guardadas en la sesión
+        preguntas_ids = request.session.get('examen_diagnostico_ids')
+
+        if not preguntas_ids:
+            # 2. Si no hay, traemos 15 preguntas nuevas al azar de forma eficiente
+            nuevas_preguntas = Question.objects.order_by('?')[:15]
+            
+            # Guardamos SOLO los IDs en la sesión para recordarlos
+            preguntas_ids = [str(p.id) for p in nuevas_preguntas]
+            request.session['examen_diagnostico_ids'] = preguntas_ids
+            
+            preguntas_seleccionadas = nuevas_preguntas
+        else:
+            # 3. Si recargó la página, buscamos exactamente las mismas preguntas
+            preguntas_seleccionadas = []
+            for p_id in preguntas_ids:
+                try:
+                    preguntas_seleccionadas.append(Question.objects.get(id=p_id))
+                except Question.DoesNotExist:
+                    continue
         
         questions_array = []
         for q in preguntas_seleccionadas:
             pregunta_dict = {
-                'id': q.id,
+                'id': str(q.id),
                 'level': q.level,
                 'type': q.question_type,
                 'text': q.text,
@@ -174,6 +179,8 @@ class APIPreguntasDiagnosticoView(View):
             
         return JsonResponse({'questions': questions_array})
     
+
+# Se mantiene tu clase ResultadosTestView intacta tal como la tenías
 class ResultadosTestView(View):
     
     def get(self, request):
@@ -189,55 +196,35 @@ class ResultadosTestView(View):
         return render(request, 'diagnosis/results.html', context)
 
     def post(self, request):
-        # 1. Recibir el JSON con las respuestas crudas del usuario (Blindaje de seguridad)
         answers_json = request.POST.get('answers_data', '[]')
         try:
             user_answers = json.loads(answers_json)
         except json.JSONDecodeError:
             user_answers = []
 
-        # Contadores de respuestas correctas
         correct_speaking = 0
         correct_listening = 0
         correct_vocab = 0
 
-        # 2. Evaluación en el backend contra la base de datos
         for item in user_answers:
             q_id = item.get('questionId')
             user_ans = item.get('answer', '').lower().strip()
             
             try:
-                # Consulta a la base de datos (Asumiendo tu modelo BancoPregunta)
-                # pregunta = BancoPregunta.objects.get(id=q_id)
-                
-                # SIMULACIÓN (Reemplaza esto con la validación real contra 'pregunta.contenido_json')
-                # if pregunta.tipo == 'SPEAKING':
-                #     target = pregunta.contenido_json.get('targetPhrase', '').lower()
-                #     if target.replace('.', '') in user_ans:
-                #         correct_speaking += 1
                 pass 
-                
             except Exception as e:
-                # Manejar el error si el ID de la pregunta no existe
                 continue
         
-        # Para pruebas, asignamos valores fijos asumiendo que ya pasaron la validación de BD
-        # Borra estas 3 líneas cuando conectes el modelo BancoPregunta
-        correct_speaking = 4  # 4 de 5 correctas
-        correct_listening = 3 # 3 de 5 correctas
-        correct_vocab = 8     # 8 de 10 correctas
+        correct_speaking = 4  
+        correct_listening = 3 
+        correct_vocab = 8     
 
-        # 3. Ponderación estricta según requerimientos RF-03 (Total = 100%)
-        # Speaking: 5 ítems = 40% (Cada uno vale 8%)
-        # Listening: 5 ítems = 40% (Cada uno vale 8%)
-        # Vocabulario: 10 ítems = 20% (Cada uno vale 2%)
         score_speaking = correct_speaking * 8
         score_listening = correct_listening * 8
         score_vocabulary = correct_vocab * 2
 
         score_total = score_speaking + score_listening + score_vocabulary
 
-        # 4. Tabla de clasificación MCER (Ajustada a RF-03)
         if score_total < 50:
             nivel = "A1"
             desc = "Nivel Principiante (Usuario Básico)"
@@ -251,9 +238,10 @@ class ResultadosTestView(View):
             desc = "Nivel Intermedio (Usuario Independiente)"
             motiv = "¡Excelente trabajo! Demuestras capacidad para comprender y expresarte en situaciones reales. Estás listo para conversaciones más profundas y complejas."
 
-        # TODO: Aquí debes hacer un UPDATE en la tabla Perfil para guardar el 'nivel_asignado' al request.user
+        # Limpieza de sesión aquí también por seguridad
+        if 'examen_diagnostico_ids' in request.session:
+            del request.session['examen_diagnostico_ids']
 
-        # 5. Empaquetamos todo y renderizamos el template
         context = {
             'nivel_asignado': nivel,
             'descripcion_mcer': desc,

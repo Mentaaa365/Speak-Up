@@ -73,9 +73,6 @@ class DummyView(TemplateView):
     template_name = 'base.html'
 
 def speakup_logout_view(request):
-    """
-    Termina de forma segura la sesión del usuario actual 
-    y limpia las cookies del navegador.
-    """
+    
     logout(request)
     return redirect('authentication:login')

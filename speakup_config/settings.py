@@ -96,12 +96,20 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {
+            "min_length": 8,  # Forzamos el mínimo de 8 caracteres aquí de forma global
+        }
     },
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+    },
+    # 🔥 ENLAZAR TU VALIDADOR PERSONALIZADO:
+    # (Si a tu archivo le pusiste 'validity.py' en vez de 'validators.py', cambia el nombre aquí)
+    {
+        "NAME": "apps.authentication.validators.SpeakUpPasswordValidator", 
     },
 ]
 
@@ -144,3 +152,8 @@ STATICFILES_DIRS = [
 
 # Muestra los correos en la consola de la terminal en lugar de enviarlos por internet
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+AUTHENTICATION_BACKENDS = [
+    'apps.authentication.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',  # Respaldo nativo de Django
+]

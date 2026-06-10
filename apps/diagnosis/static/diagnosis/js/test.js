@@ -188,12 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Almacenar respuesta en el arreglo
         userAnswers.push({
-            questionId: q.id,
-            answer: answerToSave,
-            type: q.type
+            questionId:   q.id,
+            type:         q.type,
+            answer:       answerToSave,
+            optionId:     q.type !== 'SPEAKING' ? answerToSave : '',  // ← el value del radio ya es el id
+            targetPhrase: q.targetPhrase || '',                        // ← para validar speaking
         });
-
-        currentIndex++;
 
         // Si hay más preguntas, guardamos progreso y cargamos la siguiente
         if (currentIndex < questions.length) {

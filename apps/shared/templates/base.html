@@ -44,7 +44,7 @@
                         </div>
                         <div class="user-info">
                             <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
-                            <span class="user-role">Nivel A2 activo</span>
+                            <span class="user-role">Nivel {{ request.user.perfil.nivel_mcer.codigo|default:"Sin nivel" }} activo</span>
                         </div>
                     </div>
                 {% endif %}

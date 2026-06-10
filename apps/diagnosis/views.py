@@ -6,6 +6,7 @@ from apps.question_bank.models import Question, Option
 from django.shortcuts import render
 import json
 from difflib import SequenceMatcher
+import random
 
 
 # ─────────────────────────────────────────────
@@ -45,18 +46,50 @@ class APIPreguntasDiagnosticoView(LoginRequiredMixin, View):
     si el usuario recarga la página (RNF-03).
     Retorna id, texto, tipo, audioText, targetPhrase y opciones con su id.
     """
-
     def get(self, request, *args, **kwargs):
+        """
+        Selecciona 25 preguntas distribuidas por nivel (no 15 al azar del banco total)
+        para garantizar cobertura A1/A2/B1 y una clasificación MCER confiable.
+
+        Distribución:
+            A1 →  8 preguntas (3 CHOICE + 3 LISTENING + 2 SPEAKING)
+            A2 →  8 preguntas (3 CHOICE + 3 LISTENING + 2 SPEAKING)
+            B1 →  9 preguntas (4 CHOICE + 3 LISTENING + 2 SPEAKING)
+            Total: 25 preguntas
+        """
         preguntas_ids = request.session.get('examen_diagnostico_ids')
 
         if not preguntas_ids:
-            # Primera carga: seleccionamos 15 al azar y las fijamos en sesión
-            nuevas = list(Question.objects.order_by('?')[:15])
-            preguntas_ids = [str(p.id) for p in nuevas]
+            seleccion = []
+
+            DISTRIBUCION = [
+                ('A1', 'CHOICE',    3),
+                ('A1', 'LISTENING', 3),
+                ('A1', 'SPEAKING',  2),
+                ('A2', 'CHOICE',    3),
+                ('A2', 'LISTENING', 3),
+                ('A2', 'SPEAKING',  2),
+                ('B1', 'CHOICE',    4),
+                ('B1', 'LISTENING', 3),
+                ('B1', 'SPEAKING',  2),
+            ]
+
+            for level, q_type, cantidad in DISTRIBUCION:
+                grupo = list(
+                    Question.objects.filter(
+                        level=level,
+                        question_type=q_type
+                    ).order_by('?')[:cantidad]
+                )
+                seleccion.extend(grupo)
+
+            random.shuffle(seleccion)
+
+            preguntas_ids = [str(p.id) for p in seleccion]
             request.session['examen_diagnostico_ids'] = preguntas_ids
-            preguntas_seleccionadas = nuevas
+            preguntas_seleccionadas = seleccion
+
         else:
-            # El usuario recargó: devolvemos exactamente las mismas preguntas
             preguntas_seleccionadas = []
             for p_id in preguntas_ids:
                 try:
@@ -67,15 +100,12 @@ class APIPreguntasDiagnosticoView(LoginRequiredMixin, View):
         questions_array = []
         for q in preguntas_seleccionadas:
             pregunta_dict = {
-                'id':          str(q.id),
-                'level':       q.level,
-                'type':        q.question_type,
-                'text':        q.text,
-                'audioText':   q.audio_text   or '',
+                'id':           str(q.id),
+                'level':        q.level,
+                'type':         q.question_type,
+                'text':         q.text,
+                'audioText':    q.audio_text    or '',
                 'targetPhrase': q.target_phrase or '',
-                # ✅ CORRECCIÓN: incluimos el id de cada opción para que el
-                #    frontend lo envíe de vuelta y el backend pueda consultar
-                #    is_correct directamente desde la BD (sin confiar en el cliente).
                 'options': [
                     {'id': str(opt.id), 'text': opt.text}
                     for opt in q.options.all()
@@ -84,7 +114,7 @@ class APIPreguntasDiagnosticoView(LoginRequiredMixin, View):
             questions_array.append(pregunta_dict)
 
         return JsonResponse({'questions': questions_array})
-
+    
 
 # ─────────────────────────────────────────────
 #  UC3 — Procesamiento y resultados del diagnóstico

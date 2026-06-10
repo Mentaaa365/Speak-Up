@@ -59,3 +59,94 @@ B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I'm looking forward to hearing
 B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Technological advancements have completely changed our lives.'</b>",,"Technological advancements have completely changed our lives",,,,,
 B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'It is essential that everyone follows the safety guidelines.'</b>",,"It is essential that everyone follows the safety guidelines",,,,,
 B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'To be honest, I completely disagree with that statement.'</b>",,"To be honest I completely disagree with that statement",,,,,
+level,type,text,audio_text,target_phrase,opt1,opt2,opt3,opt4,correct_opt
+A1,CHOICE,"Choose the correct option:<br><br>'There _____ a cat on the roof.'",,,is,are,be,am,1
+A1,CHOICE,"Choose the correct option:<br><br>'_____ she have a brother?'",,,Does,Do,Has,Is,1
+A1,CHOICE,"Choose the correct option:<br><br>'I _____ TV right now.'",,,watch,watching,am watching,watches,3
+A1,CHOICE,"Choose the correct option:<br><br>'He is _____ years old.'",,,ten,tens,tenth,a ten,1
+A1,CHOICE,"Choose the correct option:<br><br>'The dog is _____ the table.'",,,under,in,at,on,1
+A1,CHOICE,"Choose the correct option:<br><br>'_____ is your name?'",,,Who,What,Where,When,2
+A1,CHOICE,"Choose the correct option:<br><br>'I _____ a student.'",,,am,is,are,be,1
+A1,CHOICE,"Choose the correct option:<br><br>'She _____ coffee every morning.'",,,drink,drinks,drinking,drank,2
+A1,CHOICE,"Choose the correct option:<br><br>'_____ are the keys? On the table.'",,,What,Who,Where,When,3
+A1,CHOICE,"Choose the correct option:<br><br>'We _____ lunch at twelve.'",,,eat,eats,eating,ate,1
+A1,LISTENING,"Escucha y selecciona el animal:",I have a dog at home.,,cat,dog,bird,fish,2
+A1,LISTENING,"Escucha y selecciona el color:",My favorite color is red.,,blue,green,red,yellow,3
+A1,LISTENING,"Escucha y selecciona la ropa:",She is wearing a blue shirt.,,pants,shoes,shirt,jacket,3
+A1,LISTENING,"Escucha y selecciona el tiempo:",It is sunny today.,,rainy,cloudy,sunny,windy,3
+A1,LISTENING,"Escucha y selecciona el número de personas:",There are five people in the room.,,three,four,five,six,3
+A1,LISTENING,"Escucha y selecciona la bebida:",I drink orange juice every day.,,water,milk,orange juice,coffee,3
+A1,LISTENING,"Escucha y selecciona el verbo:",He runs in the park every morning.,,walks,runs,swims,dances,2
+A1,LISTENING,"Escucha y selecciona dónde está la escuela:",My school is near the park.,,market,hospital,school,library,3
+A1,LISTENING,"Escucha y selecciona el adjetivo:",The soup is very hot.,,cold,sweet,hot,salty,3
+A1,LISTENING,"Escucha y selecciona el mes:",My birthday is in March.,,January,February,March,April,3
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'How are you today?'</b>",,How are you today,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I live in Ecuador.'</b>",,I live in Ecuador,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'What is your job?'</b>",,What is your job,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I have two sisters.'</b>",,I have two sisters,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'The book is on the desk.'</b>",,The book is on the desk,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Nice to meet you.'</b>",,Nice to meet you,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I am hungry.'</b>",,I am hungry,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Close the door, please.'</b>",,Close the door please,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'She has long hair.'</b>",,She has long hair,,,,,
+A1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I go to school by bus.'</b>",,I go to school by bus,,,,,
+A2,CHOICE,"Complete the sentence:<br><br>'She _____ never eaten sushi before.'",,,has,have,is,was,1
+A2,CHOICE,"Complete the sentence:<br><br>'The book _____ by a famous author.'",,,writes,is written,was written,written,3
+A2,CHOICE,"Complete the sentence:<br><br>'They _____ football when it started raining.'",,,played,were playing,play,are playing,2
+A2,CHOICE,"Complete the sentence:<br><br>'Could you speak _____ slowly, please?'",,,more,most,much,very,1
+A2,CHOICE,"Complete the sentence:<br><br>'I prefer _____ at home rather than going out.'",,,stay,stayed,staying,to stay,4
+A2,CHOICE,"Complete the sentence:<br><br>'There _____ a lot of people at the concert last night.'",,,was,were,are,is,2
+A2,CHOICE,"Complete the sentence:<br><br>'She asked me _____ I liked the food.'",,,if,that,what,whether,1
+A2,CHOICE,"Complete the sentence:<br><br>'He has been working here _____ five years.'",,,since,for,during,ago,2
+A2,CHOICE,"Complete the sentence:<br><br>'_____ harder and you will pass the exam.'",,,Study,Studying,To study,Studied,1
+A2,CHOICE,"Complete the sentence:<br><br>'Neither my brother _____ my sister likes horror films.'",,,or,nor,and,but,2
+A2,LISTENING,"Escucha y selecciona el plan:",I'm going to visit my grandparents this weekend.,,stay home,visit friends,visit grandparents,go to the cinema,3
+A2,LISTENING,"Escucha y selecciona el sentimiento:",She was really disappointed with the results.,,happy,surprised,disappointed,angry,3
+A2,LISTENING,"Escucha y selecciona la descripción:",The new restaurant is quite expensive but the food is delicious.,,cheap and bad,cheap and good,expensive and bad,expensive and good,4
+A2,LISTENING,"Escucha y selecciona el medio de comunicación:",He sent me a text message this morning.,,email,phone call,text message,letter,3
+A2,LISTENING,"Escucha y selecciona la razón:",She left early because she had a headache.,,missed the bus,felt tired,had a headache,had an appointment,3
+A2,LISTENING,"Escucha y selecciona el tiempo verbal usado:",I finished the report before the deadline.,,present,future,past,present perfect,3
+A2,LISTENING,"Escucha y selecciona la materia:",My favorite subject is mathematics.,,science,history,mathematics,geography,3
+A2,LISTENING,"Escucha y selecciona la instrucción:",Please turn off your mobile phones during the exam.,,turn on phones,put away phones,turn off phones,charge phones,3
+A2,LISTENING,"Escucha y selecciona el número de habitaciones:",The apartment has three bedrooms.,,one,two,three,four,3
+A2,LISTENING,"Escucha y selecciona el resultado:",The team lost the match by two goals.,,won by two,drew,lost by two,won by one,3
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I have been waiting for an hour.'</b>",,I have been waiting for an hour,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Could you please repeat that?'</b>",,Could you please repeat that,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'She went to the market and bought vegetables.'</b>",,She went to the market and bought vegetables,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I usually wake up at seven in the morning.'</b>",,I usually wake up at seven in the morning,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'It is much colder today than yesterday.'</b>",,It is much colder today than yesterday,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'My parents have lived here for twenty years.'</b>",,My parents have lived here for twenty years,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Turn left at the traffic lights.'</b>",,Turn left at the traffic lights,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'He was cooking dinner when I arrived.'</b>",,He was cooking dinner when I arrived,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Do you mind if I open the window?'</b>",,Do you mind if I open the window,,,,,
+A2,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I have never tried Japanese food before.'</b>",,I have never tried Japanese food before,,,,,
+B1,CHOICE,"Select the correct option:<br><br>'Hardly _____ anyone come to the party.'",,,did,does,had,was,1
+B1,CHOICE,"Select the correct option:<br><br>'She would rather _____ home than go shopping.'",,,stay,stayed,staying,to stay,1
+B1,CHOICE,"Select the correct option:<br><br>'Not only _____ he arrive late, but he also forgot the report.'",,,did,had,was,has,1
+B1,CHOICE,"Select the correct option:<br><br>'The suspect denied _____ the documents.'",,,to steal,steal,stolen,having stolen,4
+B1,CHOICE,"Select the correct option:<br><br>'It's high time we _____ action on climate change.'",,,take,took,taken,have taken,2
+B1,CHOICE,"Select the correct option:<br><br>'She managed to _____ the problem without any help.'",,,solve,solving,have solved,solved,1
+B1,CHOICE,"Select the correct option:<br><br>'We were made _____ overtime without extra pay.'",,,work,to work,working,worked,2
+B1,CHOICE,"Select the correct option:<br><br>'The report, _____ was submitted yesterday, contained several errors.'",,,who,whom,which,whose,3
+B1,CHOICE,"Select the correct option:<br><br>'Had I known about the delay, I _____ a different route.'",,,take,would take,would have taken,had taken,3
+B1,CHOICE,"Select the correct option:<br><br>'I cannot help _____ worried about the final exam.'",,,feel,felt,feeling,to feel,3
+B1,LISTENING,"Escucha y selecciona la conclusión:",The study confirms that regular exercise significantly reduces stress levels.,,exercise causes stress,stress prevents exercise,exercise reduces stress,stress improves health,3
+B1,LISTENING,"Escucha y selecciona la estructura gramatical usada:",If the government had invested more in education the outcomes would have been different.,,first conditional,second conditional,third conditional,zero conditional,3
+B1,LISTENING,"Escucha y selecciona el tono del hablante:",To be perfectly frank I find the new policy completely counterproductive.,,supportive,neutral,critical,enthusiastic,3
+B1,LISTENING,"Escucha y selecciona la implicación:",She said she might consider the offer depending on the conditions.,,She accepted,She refused,She is undecided,She ignored it,3
+B1,LISTENING,"Escucha y selecciona el problema principal:",The infrastructure in rural areas is severely underfunded which limits access to healthcare.,,lack of teachers,poor infrastructure,high crime,water shortage,2
+B1,LISTENING,"Escucha y selecciona la función del conector:",Although the project was completed on time the client was not fully satisfied.,,reason,contrast,result,condition,2
+B1,LISTENING,"Escucha y selecciona el propósito del mensaje:",We would like to inform you that your application has been received and is currently under review.,,to apologize,to confirm receipt,to reject application,to request documents,2
+B1,LISTENING,"Escucha y selecciona el tipo de oracion:",Provided that all requirements are met the contract will be signed next week.,,relative clause,result clause,conditional clause,purpose clause,3
+B1,LISTENING,"Escucha y selecciona la sugerencia implícita:",Perhaps we should reconsider our approach before presenting to the board.,,proceed immediately,delay indefinitely,reconsider the approach,cancel the presentation,3
+B1,LISTENING,"Escucha y selecciona el cambio de posición:",Initially he opposed the merger but after reviewing the data he changed his mind.,,He always supported it,He opposed it then supported it,He supported it then opposed it,He remained neutral,2
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'The results were far more complex than initially expected.'</b>",,The results were far more complex than initially expected,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'She insisted on being consulted before any decision was made.'</b>",,She insisted on being consulted before any decision was made,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Had they prepared properly, the outcome might have been different.'</b>",,Had they prepared properly the outcome might have been different,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'The government is under pressure to address rising inequality.'</b>",,The government is under pressure to address rising inequality,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Not only did he finish first, but he also broke the record.'</b>",,Not only did he finish first but he also broke the record,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'It is worth considering all the possible consequences.'</b>",,It is worth considering all the possible consequences,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'Despite considerable opposition, the bill was passed.'</b>",,Despite considerable opposition the bill was passed,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'She acknowledged that the situation required immediate attention.'</b>",,She acknowledged that the situation required immediate attention,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'I would have applied earlier had I known about the deadline.'</b>",,I would have applied earlier had I known about the deadline,,,,,
+B1,SPEAKING,"Lee la frase en voz alta:<br><br><b>'The findings suggest a strong correlation between diet and mental health.'</b>",,The findings suggest a strong correlation between diet and mental health,,,,,

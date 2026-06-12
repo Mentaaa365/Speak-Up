@@ -2,7 +2,8 @@ from django.contrib.auth.views import LoginView
 from django.views.generic import TemplateView
 from django.shortcuts import redirect, render
 from django.contrib.auth import logout
-from django.contrib.auth.models import User  # <-- Importación vital para que funcione el registro
+from django.contrib.auth import get_user_model
+User = get_user_model() # <-- Importación vital para que funcione el registro
 from django.urls import reverse_lazy      # <-- Importación recomendada para redirecciones en LoginView
 from django.contrib import messages
 from .forms import RegistroForm

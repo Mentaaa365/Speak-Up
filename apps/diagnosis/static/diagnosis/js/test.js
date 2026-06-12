@@ -195,6 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
             targetPhrase: q.targetPhrase || '',                        // ← para validar speaking
         });
 
+        // Avanzar a la siguiente pregunta
+        currentIndex++;
+
         // Si hay más preguntas, guardamos progreso y cargamos la siguiente
         if (currentIndex < questions.length) {
             localStorage.setItem('diagnostic_progress', JSON.stringify({

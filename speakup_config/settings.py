@@ -96,7 +96,7 @@ DATABASES = {
         "PORT": os.environ.get("DB_PORT", "1433"),
         "OPTIONS": {
             "driver": "ODBC Driver 18 for SQL Server",
-            "extra_params": "Encrypt=yes;TrustServerCertificate=yes;",
+            "extra_params": "Encrypt=yes;TrustServerCertificate=yes;Trusted_Connection=yes;",
         },
     }
 }

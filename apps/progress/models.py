@@ -1,9 +1,5 @@
 import uuid
 from django.db import models
-from django.contrib.auth.models import User
-# Nuevas importaciones para las señales
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 class NivelMCER(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -20,12 +16,6 @@ class Submodulo(models.Model):
     tipo = models.CharField(max_length=50)
     orden = models.IntegerField()
 
-class Perfil(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='perfil')
-    nivel_mcer = models.ForeignKey(NivelMCER, on_delete=models.SET_NULL, null=True, blank=True)
-    institucion = models.CharField(max_length=255, blank=True, null=True)
-
 class Ejercicio(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     submodulo = models.ForeignKey(Submodulo, on_delete=models.CASCADE, related_name='ejercicios')
@@ -34,7 +24,7 @@ class Ejercicio(models.Model):
 
 class ProgresoPorEjercicio(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    perfil = models.ForeignKey(Perfil, on_delete=models.CASCADE, related_name='progresos')
+    perfil = models.ForeignKey("authentication.Perfil", on_delete=models.CASCADE, related_name='progresos')
     ejercicio = models.ForeignKey(Ejercicio, on_delete=models.CASCADE)
     puntaje = models.DecimalField(max_digits=5, decimal_places=2)
     activo = models.BooleanField(default=True)
@@ -42,18 +32,3 @@ class ProgresoPorEjercicio(models.Model):
 
     class Meta:
         unique_together = ('perfil', 'ejercicio')
-
-
-# --- SEÑALES PARA LA CREACIÓN AUTOMÁTICA DEL PERFIL ---
-
-# --- SEÑALES PARA LA CREACIÓN AUTOMÁTICA DEL PERFIL ---
-
-@receiver(post_save, sender=User)
-def manejar_perfil_usuario(sender, instance, created, **kwargs):
-    if created:
-        # Si el usuario es nuevo, se crea el perfil
-        Perfil.objects.create(usuario=instance)
-    else:
-        # Si el usuario ya existe (ej. al hacer login), solo guarda si tiene perfil
-        if hasattr(instance, 'perfil'):
-            instance.perfil.save()

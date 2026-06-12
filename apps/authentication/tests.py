@@ -1,3 +1,152 @@
-from django.test import TestCase
+from datetime import timedelta
 
-# Create your tests here.
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
+from django.test import TestCase
+from django.utils import timezone
+
+from apps.authentication.backends import EmailBackend
+from apps.authentication.models import PasswordResetToken, Perfil
+from apps.curriculum.models import NivelMCER
+
+User = get_user_model()
+
+
+class CustomUserModelTests(TestCase):
+    """Custom User(AbstractUser) with unique email."""
+
+    def test_get_user_model_resolves_to_authentication_user(self):
+        self.assertEqual(User._meta.app_label, "authentication")
+        self.assertEqual(User._meta.model_name, "user")
+
+    def test_duplicate_email_raises_integrity_error(self):
+        User.objects.create_user(
+            username="ana", email="ana@example.com", password="x"
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                User.objects.create_user(
+                    username="ana2", email="ana@example.com", password="y"
+                )
+
+
+class EmailBackendTests(TestCase):
+    """EmailBackend.authenticate continues to work with the custom User."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="bea", email="bea@example.com", password="correct-pass"
+        )
+        self.backend = EmailBackend()
+
+    def test_authenticate_returns_user_with_correct_password(self):
+        authenticated = self.backend.authenticate(
+            request=None, username="bea@example.com", password="correct-pass"
+        )
+        self.assertEqual(authenticated, self.user)
+
+    def test_authenticate_returns_none_with_wrong_password(self):
+        authenticated = self.backend.authenticate(
+            request=None, username="bea@example.com", password="wrong-pass"
+        )
+        self.assertIsNone(authenticated)
+
+
+class PerfilSignalTests(TestCase):
+    """Perfil is auto-created via post_save when a User is created."""
+
+    def test_creating_user_auto_creates_exactly_one_perfil(self):
+        user = User.objects.create_user(
+            username="carla", email="carla@example.com", password="x"
+        )
+        self.assertEqual(Perfil.objects.filter(usuario=user).count(), 1)
+        perfil = Perfil.objects.get(usuario=user)
+        self.assertIsNone(perfil.nivel_mcer)
+
+    def test_existing_user_save_does_not_duplicate_perfil(self):
+        user = User.objects.create_user(
+            username="dani", email="dani@example.com", password="x"
+        )
+        self.assertEqual(Perfil.objects.filter(usuario=user).count(), 1)
+
+        # Saving the user again (created=False) must not create a second Perfil.
+        user.first_name = "Dani"
+        user.save()
+
+        self.assertEqual(Perfil.objects.filter(usuario=user).count(), 1)
+
+    def test_perfil_nivel_mcer_set_null_on_nivel_delete(self):
+        nivel = NivelMCER.objects.create(codigo="A1", orden=1)
+        user = User.objects.create_user(
+            username="elena", email="elena@example.com", password="x"
+        )
+        perfil = Perfil.objects.get(usuario=user)
+        perfil.nivel_mcer = nivel
+        perfil.save()
+
+        nivel.delete()
+
+        perfil.refresh_from_db()
+        self.assertIsNone(perfil.nivel_mcer)
+
+
+class PasswordResetTokenTests(TestCase):
+    """PasswordResetToken: TTL, single-active-per-user, invalidation on use."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="fede", email="fede@example.com", password="x"
+        )
+
+    def test_expired_token_is_invalid(self):
+        token = PasswordResetToken.objects.create(
+            usuario=self.user,
+            token_hash="a" * 64,
+            expires_at=timezone.now() - timedelta(minutes=1),
+        )
+        self.assertTrue(token.is_expired())
+
+    def test_unexpired_unused_token_is_valid(self):
+        token = PasswordResetToken.objects.create(
+            usuario=self.user,
+            token_hash="b" * 64,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.assertFalse(token.is_expired())
+
+    def test_unique_constraint_blocks_second_active_token_per_user(self):
+        PasswordResetToken.objects.create(
+            usuario=self.user,
+            token_hash="c" * 64,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PasswordResetToken.objects.create(
+                    usuario=self.user,
+                    token_hash="d" * 64,
+                    expires_at=timezone.now() + timedelta(minutes=30),
+                )
+
+    def test_marking_used_allows_new_active_token(self):
+        first = PasswordResetToken.objects.create(
+            usuario=self.user,
+            token_hash="e" * 64,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        first.used_at = timezone.now()
+        first.save()
+
+        second = PasswordResetToken.objects.create(
+            usuario=self.user,
+            token_hash="f" * 64,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+
+        self.assertIsNotNone(second.pk)
+        self.assertEqual(
+            PasswordResetToken.objects.filter(
+                usuario=self.user, used_at__isnull=True
+            ).count(),
+            1,
+        )

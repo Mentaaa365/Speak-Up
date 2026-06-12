@@ -154,6 +154,8 @@ STATICFILES_DIRS = [
 # Muestra los correos en la consola de la terminal en lugar de enviarlos por internet
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+AUTH_USER_MODEL = "authentication.User"
+
 AUTHENTICATION_BACKENDS = [
     'apps.authentication.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',  # Respaldo nativo de Django

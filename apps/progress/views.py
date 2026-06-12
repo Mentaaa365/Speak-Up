@@ -1,7 +1,8 @@
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
-from apps.progress.models import Perfil, NivelMCER, Submodulo, Ejercicio, ProgresoPorEjercicio
+from apps.authentication.models import Perfil
+from apps.progress.models import NivelMCER, Submodulo, Ejercicio, ProgresoPorEjercicio
 
 
 # ─────────────────────────────────────────────────────────────────────────────

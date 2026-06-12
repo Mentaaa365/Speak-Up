@@ -2,7 +2,8 @@ from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
 from apps.authentication.models import Perfil
-from apps.progress.models import NivelMCER, Submodulo, Ejercicio, ProgresoPorEjercicio
+from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
+from apps.progress.models import IntentoEjercicio
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@ def _calcular_submodulos_completados(perfil, nivel):
         total_ej = submodulo.ejercicios.count()
         if total_ej == 0:
             continue
-        aprobados = ProgresoPorEjercicio.objects.filter(
+        aprobados = IntentoEjercicio.objects.filter(
             perfil=perfil,
             ejercicio__submodulo=submodulo,
             puntaje__gte=80,
@@ -60,7 +61,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # ── Barra 1: Progreso Global del Sistema ─────────────────────────────
         # Cuenta TODAS las actividades superadas del sistema (no solo del nivel activo)
         total_ejercicios    = Ejercicio.objects.count()
-        ejercicios_exitosos = ProgresoPorEjercicio.objects.filter(
+        ejercicios_exitosos = IntentoEjercicio.objects.filter(
             perfil=perfil,
             puntaje__gte=80,
             activo=True,
@@ -123,7 +124,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         for submodulo in nivel_activo.submodulos.all().order_by('orden'):
             total_ej  = submodulo.ejercicios.count()
-            aprobados = ProgresoPorEjercicio.objects.filter(
+            aprobados = IntentoEjercicio.objects.filter(
                 perfil=perfil,
                 ejercicio__submodulo=submodulo,
                 puntaje__gte=80,
@@ -212,7 +213,7 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 
         # ── Barra 1: Global ───────────────────────────────────────────────────
         total_ejercicios    = Ejercicio.objects.count()
-        ejercicios_exitosos = ProgresoPorEjercicio.objects.filter(
+        ejercicios_exitosos = IntentoEjercicio.objects.filter(
             perfil=perfil, puntaje__gte=80, activo=True
         ).count()
 
@@ -263,7 +264,7 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 
         for submodulo in nivel_activo.submodulos.all().order_by('orden'):
             total_ej  = submodulo.ejercicios.count()
-            aprobados = ProgresoPorEjercicio.objects.filter(
+            aprobados = IntentoEjercicio.objects.filter(
                 perfil=perfil,
                 ejercicio__submodulo=submodulo,
                 puntaje__gte=80,

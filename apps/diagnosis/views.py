@@ -190,7 +190,8 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
             motiv = '¡Excelente nivel inicial! Estás listo para los desafíos del nivel B1.'
 
         # 5. Persistir nivel en la BD
-        from apps.progress.models import Perfil, NivelMCER
+        from apps.authentication.models import Perfil
+        from apps.curriculum.models import NivelMCER
         try:
             perfil    = Perfil.objects.get(usuario=request.user)
             nivel_obj = NivelMCER.objects.get(codigo=nivel)
@@ -216,7 +217,7 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
 
     # ── GET: muestra resultados si el usuario ya tiene nivel asignado ──
     def get(self, request, *args, **kwargs):
-        from apps.progress.models import Perfil
+        from apps.authentication.models import Perfil
 
         try:
             perfil = Perfil.objects.get(usuario=request.user)

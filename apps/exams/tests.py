@@ -1,3 +1,168 @@
+from decimal import Decimal
+
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 
-# Create your tests here.
+from apps.authentication.models import Perfil
+from apps.curriculum.models import NivelMCER
+from apps.exams.models import Certificado, ExamenIntento
+
+User = get_user_model()
+
+
+class ExamenIntentoTipoChoicesTests(TestCase):
+    """`tipo` must be one of the allowed choices, enforced at clean level."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="gina", email="gina@example.com", password="x"
+        )
+        self.perfil = Perfil.objects.get(usuario=self.user)
+
+    def test_invalid_tipo_raises_validation_error(self):
+        examen = ExamenIntento(
+            perfil=self.perfil,
+            tipo="INVALIDO",
+            puntaje=Decimal("0.00"),
+        )
+        with self.assertRaises(ValidationError):
+            examen.full_clean()
+
+    def test_valid_tipo_passes_clean_fields(self):
+        examen = ExamenIntento(
+            perfil=self.perfil,
+            tipo="DIAGNOSTICO",
+            puntaje=Decimal("50.00"),
+        )
+        # Should not raise for a valid choice. `detalle_json` is excluded
+        # because JSONField treats its default `{}` as blank for
+        # full_clean() purposes, which is unrelated to the `tipo` check
+        # under test here.
+        examen.full_clean(exclude=["detalle_json"])
+
+
+class ExamenIntentoDiagnosticoTests(TestCase):
+    """DIAGNOSTICO row persists with perfil, nivel_objetivo, and puntaje."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="hugo", email="hugo@example.com", password="x"
+        )
+        self.perfil = Perfil.objects.get(usuario=self.user)
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=1)
+
+    def test_diagnostico_row_persists_with_expected_fields(self):
+        examen = ExamenIntento.objects.create(
+            perfil=self.perfil,
+            tipo="DIAGNOSTICO",
+            nivel_objetivo=self.nivel,
+            puntaje=Decimal("75.50"),
+        )
+
+        examen.refresh_from_db()
+        self.assertEqual(examen.perfil, self.perfil)
+        self.assertEqual(examen.nivel_objetivo, self.nivel)
+        self.assertEqual(examen.puntaje, Decimal("75.50"))
+        self.assertEqual(examen.tipo, "DIAGNOSTICO")
+        self.assertFalse(examen.aprobado)
+        self.assertEqual(examen.detalle_json, {})
+
+
+class ExamenIntentoPromocionTests(TestCase):
+    """PROMOCION attempts accumulate across multiple failed tries; none deleted."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="ines", email="ines@example.com", password="x"
+        )
+        self.perfil = Perfil.objects.get(usuario=self.user)
+        self.nivel = NivelMCER.objects.create(codigo="B1", orden=3)
+
+    def test_multiple_failed_promocion_attempts_all_persist(self):
+        for i in range(3):
+            ExamenIntento.objects.create(
+                perfil=self.perfil,
+                tipo="PROMOCION",
+                nivel_objetivo=self.nivel,
+                puntaje=Decimal("40.00"),
+                aprobado=False,
+            )
+
+        attempts = ExamenIntento.objects.filter(
+            perfil=self.perfil, tipo="PROMOCION"
+        )
+        self.assertEqual(attempts.count(), 3)
+        self.assertTrue(all(not a.aprobado for a in attempts))
+
+
+class CertificadoTests(TestCase):
+    """Certificado: UUID pk, unique codigo_hash, OneToOne PROTECT to examen."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="javi", email="javi@example.com", password="x"
+        )
+        self.perfil = Perfil.objects.get(usuario=self.user)
+        self.nivel = NivelMCER.objects.create(codigo="B2", orden=4)
+        self.examen = ExamenIntento.objects.create(
+            perfil=self.perfil,
+            tipo="CERTIFICACION",
+            nivel_objetivo=self.nivel,
+            puntaje=Decimal("90.00"),
+            aprobado=True,
+        )
+
+    def test_id_is_uuid(self):
+        import uuid
+
+        certificado = Certificado.objects.create(
+            examen=self.examen,
+            codigo_hash="a" * 64,
+            nivel=self.nivel,
+        )
+        self.assertIsInstance(certificado.id, uuid.UUID)
+
+    def test_codigo_hash_unique(self):
+        Certificado.objects.create(
+            examen=self.examen,
+            codigo_hash="b" * 64,
+            nivel=self.nivel,
+        )
+
+        otro_examen = ExamenIntento.objects.create(
+            perfil=self.perfil,
+            tipo="CERTIFICACION",
+            nivel_objetivo=self.nivel,
+            puntaje=Decimal("95.00"),
+            aprobado=True,
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Certificado.objects.create(
+                    examen=otro_examen,
+                    codigo_hash="b" * 64,
+                    nivel=self.nivel,
+                )
+
+    def test_examen_protect_on_delete(self):
+        Certificado.objects.create(
+            examen=self.examen,
+            codigo_hash="c" * 64,
+            nivel=self.nivel,
+        )
+
+        from django.db.models import ProtectedError
+
+        with self.assertRaises(ProtectedError):
+            self.examen.delete()
+
+    def test_examen_is_onetoone(self):
+        certificado = Certificado.objects.create(
+            examen=self.examen,
+            codigo_hash="d" * 64,
+            nivel=self.nivel,
+        )
+        self.assertEqual(self.examen.certificado, certificado)

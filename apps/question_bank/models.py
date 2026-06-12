@@ -1,5 +1,4 @@
 from django.db import models
-from django.db import models
 
 class Question(models.Model):
     """
@@ -19,15 +18,28 @@ class Question(models.Model):
         ('SPEAKING', 'Pronunciación (Motor STT)'),
     ]
 
+    BANK_CONTEXT_CHOICES = [
+        ('DIAGNOSTIC', 'Diagnostic'),
+        ('EXERCISE', 'Exercise'),
+        ('PROMOTION_EXAM', 'Promotion Exam'),
+    ]
+
     level = models.CharField(
-        max_length=4, 
-        choices=LEVEL_CHOICES, 
+        max_length=4,
+        choices=LEVEL_CHOICES,
         verbose_name="Nivel al que pertenece"
     )
     question_type = models.CharField(
-        max_length=15, 
-        choices=TYPE_CHOICES, 
+        max_length=15,
+        choices=TYPE_CHOICES,
         verbose_name="Tipo de Pregunta"
+    )
+    bank_context = models.CharField(
+        max_length=15,
+        choices=BANK_CONTEXT_CHOICES,
+        default='DIAGNOSTIC',
+        db_index=True,
+        verbose_name="Contexto del banco de preguntas"
     )
     text = models.TextField(
         verbose_name="Texto de la pregunta (Se permite HTML para negritas o saltos de línea)"
@@ -63,9 +75,10 @@ class Option(models.Model):
     Opciones de respuesta para las preguntas de tipo CHOICE o LISTENING.
     """
     question = models.ForeignKey(
-        Question, 
-        on_delete=models.CASCADE, 
+        Question,
+        on_delete=models.CASCADE,
         related_name='options',
+        db_index=True,
         verbose_name="Pregunta asociada"
     )
     text = models.CharField(

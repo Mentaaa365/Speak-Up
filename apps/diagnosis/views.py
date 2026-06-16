@@ -78,7 +78,8 @@ class APIPreguntasDiagnosticoView(LoginRequiredMixin, View):
                 grupo = list(
                     Question.objects.filter(
                         level=level,
-                        question_type=q_type
+                        question_type=q_type,
+                        bank_context='DIAGNOSTIC',
                     ).order_by('?')[:cantidad]
                 )
                 seleccion.extend(grupo)

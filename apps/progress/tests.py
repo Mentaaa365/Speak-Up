@@ -1,11 +1,62 @@
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.test import TestCase
+from django.urls import reverse
 
 from apps.curriculum.models import Ejercicio, NivelMCER, Submodulo
+from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
 
 User = get_user_model()
+
+
+class DashboardIntentosRestantesTests(TestCase):
+    """intentos_restantes must reflect real ExamenIntento records, not a hardcoded 2."""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=1, parametros_json={})
+        self.user = User.objects.create_user(
+            username="dash@example.com", email="dash@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.client.force_login(self.user)
+
+    def test_intentos_restantes_is_2_when_no_attempts_exist(self):
+        response = self.client.get(reverse("progress:dashboard"))
+        self.assertEqual(response.context["examen"]["intentos_restantes"], 2)
+
+    def test_intentos_restantes_decrements_after_one_attempt(self):
+        ExamenIntento.objects.create(
+            perfil=self.perfil,
+            tipo="PROMOCION",
+            nivel_objetivo=self.nivel,
+            puntaje=45,
+        )
+        response = self.client.get(reverse("progress:dashboard"))
+        self.assertEqual(response.context["examen"]["intentos_restantes"], 1)
+
+    def test_intentos_restantes_is_zero_after_two_attempts(self):
+        ExamenIntento.objects.create(
+            perfil=self.perfil, tipo="PROMOCION",
+            nivel_objetivo=self.nivel, puntaje=40,
+        )
+        ExamenIntento.objects.create(
+            perfil=self.perfil, tipo="PROMOCION",
+            nivel_objetivo=self.nivel, puntaje=38,
+        )
+        response = self.client.get(reverse("progress:dashboard"))
+        self.assertEqual(response.context["examen"]["intentos_restantes"], 0)
+
+    def test_intentos_of_other_nivel_do_not_count(self):
+        otro_nivel = NivelMCER.objects.create(codigo="A2", orden=2, parametros_json={})
+        ExamenIntento.objects.create(
+            perfil=self.perfil, tipo="PROMOCION",
+            nivel_objetivo=otro_nivel, puntaje=40,
+        )
+        response = self.client.get(reverse("progress:dashboard"))
+        self.assertEqual(response.context["examen"]["intentos_restantes"], 2)
 
 
 class IntentoEjercicioModelTests(TestCase):

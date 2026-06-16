@@ -1,8 +1,10 @@
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
+from django.urls import reverse_lazy
 from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
+from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
 
 
@@ -174,10 +176,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         subs_completados  = _calcular_submodulos_completados(perfil, nivel_activo)
         examen_disponible = total_subs_activo > 0 and subs_completados >= total_subs_activo
 
+        intentos_usados = ExamenIntento.objects.filter(
+            perfil=perfil,
+            nivel_objetivo=nivel_activo,
+            tipo__in=['PROMOCION', 'CERTIFICACION'],
+        ).count()
+
         context['examen'] = {
             'disponible':         examen_disponible,
-            'intentos_restantes': 2,         # TODO: conectar con modelo ExamenIntento (HU-06)
+            'intentos_restantes': max(0, 2 - intentos_usados),
             'titulo':             titulo_examen,
+            'url':                '#',  # placeholder until exams:start is implemented (Fase 3)
         }
 
         return context

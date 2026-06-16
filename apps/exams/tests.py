@@ -295,3 +295,91 @@ class ExamStartViewGuardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn('aún no tiene preguntas', response.content.decode())
         self.assertNotIn('agotado', response.content.decode())
+
+
+class ExamStartViewQuestionSelectionTests(TestCase):
+    """ExamStartView selects 20 questions, caches IDs in session, determines tipo (PR B)."""
+
+    def setUp(self):
+        self.nivel_a1 = NivelMCER.objects.create(codigo='A1', orden=1, parametros_json={})
+        self.nivel_a2 = NivelMCER.objects.create(codigo='A2', orden=2, parametros_json={})
+        self.user = User.objects.create_user(
+            username='select@example.com',
+            email='select@example.com',
+            password='TestPass1!',
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel_a1
+        self.perfil.save()
+        self.client.force_login(self.user)
+        self.url = reverse('exams:start')
+        self._populate_bank('A1')
+
+    def _populate_bank(self, codigo):
+        for i in range(5):
+            Question.objects.create(
+                level=codigo, question_type='SPEAKING', bank_context='PROMOTION_EXAM',
+                text=f'{codigo} Speak {i}', target_phrase=f'phrase {i}',
+            )
+            Question.objects.create(
+                level=codigo, question_type='LISTENING', bank_context='PROMOTION_EXAM',
+                text=f'{codigo} Listen {i}', audio_text=f'audio {i}',
+            )
+        for i in range(10):
+            Question.objects.create(
+                level=codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM',
+                text=f'{codigo} Choose {i}',
+            )
+
+    def test_get_caches_20_question_ids_in_session(self):
+        self.client.get(self.url)
+        ids = self.client.session.get('examen_promocion_ids')
+        self.assertIsNotNone(ids)
+        self.assertEqual(len(ids), 20)
+
+    def test_selected_questions_are_5_speaking_5_listening_10_choice(self):
+        self.client.get(self.url)
+        ids = self.client.session['examen_promocion_ids']
+        qs = Question.objects.filter(id__in=ids)
+        self.assertEqual(qs.filter(question_type='SPEAKING').count(), 5)
+        self.assertEqual(qs.filter(question_type='LISTENING').count(), 5)
+        self.assertEqual(qs.filter(question_type='CHOICE').count(), 10)
+
+    def test_selected_questions_are_all_from_nivel_activo(self):
+        self.client.get(self.url)
+        ids = self.client.session['examen_promocion_ids']
+        qs = Question.objects.filter(id__in=ids)
+        self.assertTrue(all(q.level == 'A1' for q in qs))
+
+    def test_selected_questions_are_all_promotion_exam_context(self):
+        self.client.get(self.url)
+        ids = self.client.session['examen_promocion_ids']
+        qs = Question.objects.filter(id__in=ids)
+        self.assertTrue(all(q.bank_context == 'PROMOTION_EXAM' for q in qs))
+
+    def test_second_get_reuses_cached_session_ids(self):
+        self.client.get(self.url)
+        first_ids = list(self.client.session['examen_promocion_ids'])
+        self.client.get(self.url)
+        second_ids = list(self.client.session['examen_promocion_ids'])
+        self.assertEqual(first_ids, second_ids)
+
+    def test_tipo_is_promocion_when_next_nivel_exists(self):
+        # nivel_a1 has orden=1, nivel_a2 has orden=2 → tipo='PROMOCION'
+        response = self.client.get(self.url)
+        self.assertEqual(response.context['tipo'], 'PROMOCION')
+
+    def test_tipo_is_certificacion_when_no_next_nivel(self):
+        self.perfil.nivel_mcer = self.nivel_a2
+        self.perfil.save()
+        self._populate_bank('A2')
+        # Clear session so questions get re-selected for A2
+        session = self.client.session
+        session.pop('examen_promocion_ids', None)
+        session.save()
+        response = self.client.get(self.url)
+        self.assertEqual(response.context['tipo'], 'CERTIFICACION')
+
+    def test_context_contains_nivel_activo(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.context['nivel_activo'], self.nivel_a1)

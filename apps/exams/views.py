@@ -1,3 +1,5 @@
+import random
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
@@ -5,6 +7,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from apps.authentication.models import Perfil
+from apps.curriculum.models import NivelMCER
 from apps.exams.models import Certificado, ExamenIntento
 from apps.question_bank.models import Question
 
@@ -62,9 +65,42 @@ class ExamStartView(LoginRequiredMixin, View):
                 'error': 'Este examen aún no tiene preguntas configuradas. Inténtalo más tarde.',
             })
 
-        # All guards pass — stub until PR B wires up question delivery
+        # Determine tipo: CERTIFICACION when no next nivel exists
+        nivel_siguiente = NivelMCER.objects.filter(
+            orden__gt=nivel_activo.orden
+        ).order_by('orden').first()
+        tipo = 'CERTIFICACION' if nivel_siguiente is None else 'PROMOCION'
+
+        # Question selection — session-cached so reloads don't reshuffle
+        preguntas_ids = request.session.get('examen_promocion_ids')
+        if not preguntas_ids:
+            seleccion = []
+            for q_type, cantidad in [('SPEAKING', 5), ('LISTENING', 5), ('CHOICE', 10)]:
+                grupo = list(
+                    Question.objects.filter(
+                        bank_context='PROMOTION_EXAM',
+                        level=nivel_activo.codigo,
+                        question_type=q_type,
+                    ).order_by('?')[:cantidad]
+                )
+                seleccion.extend(grupo)
+            random.shuffle(seleccion)
+            preguntas_ids = [str(q.id) for q in seleccion]
+            request.session['examen_promocion_ids'] = preguntas_ids
+            preguntas_seleccionadas = seleccion
+        else:
+            preguntas_seleccionadas = []
+            for p_id in preguntas_ids:
+                try:
+                    preguntas_seleccionadas.append(Question.objects.get(id=p_id))
+                except Question.DoesNotExist:
+                    continue
+
         return render(request, self.template_name, {
             'nivel_activo': nivel_activo,
+            'nivel_siguiente': nivel_siguiente,
+            'tipo': tipo,
+            'preguntas': preguntas_seleccionadas,
         })
 
 

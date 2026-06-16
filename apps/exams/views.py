@@ -1,4 +1,6 @@
+import json
 import random
+from decimal import Decimal
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, render
@@ -9,7 +11,8 @@ from django.views.generic import TemplateView
 from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER
 from apps.exams.models import Certificado, ExamenIntento
-from apps.question_bank.models import Question
+from apps.question_bank.models import Option, Question
+from apps.shared.utils import _similitud
 
 
 class ExamStartView(LoginRequiredMixin, View):
@@ -102,6 +105,70 @@ class ExamStartView(LoginRequiredMixin, View):
             'tipo': tipo,
             'preguntas': preguntas_seleccionadas,
         })
+
+    def post(self, request, *args, **kwargs):
+        try:
+            perfil = Perfil.objects.get(usuario=request.user)
+        except Perfil.DoesNotExist:
+            return redirect(reverse_lazy('diagnosis:welcome'))
+
+        nivel_activo = perfil.nivel_mcer
+        if not nivel_activo:
+            return redirect(reverse_lazy('diagnosis:welcome'))
+
+        nivel_siguiente = NivelMCER.objects.filter(
+            orden__gt=nivel_activo.orden
+        ).order_by('orden').first()
+        tipo = 'CERTIFICACION' if nivel_siguiente is None else 'PROMOCION'
+
+        try:
+            user_answers = json.loads(request.POST.get('answers_data', '[]'))
+        except json.JSONDecodeError:
+            user_answers = []
+
+        correct_speaking = 0
+        correct_listening = 0
+        correct_choice = 0
+
+        for item in user_answers:
+            q_type = item.get('type', '')
+            answer = item.get('answer', '')
+            target = item.get('targetPhrase', '')
+            option_id = item.get('optionId', '')
+
+            if q_type == 'SPEAKING':
+                if target and _similitud(answer, target) >= 0.55:
+                    correct_speaking += 1
+            elif q_type in ('LISTENING', 'CHOICE'):
+                if option_id:
+                    try:
+                        opt = Option.objects.get(id=option_id)
+                        if opt.is_correct:
+                            if q_type == 'LISTENING':
+                                correct_listening += 1
+                            else:
+                                correct_choice += 1
+                    except Option.DoesNotExist:
+                        pass
+
+        puntaje = Decimal(
+            min(correct_speaking * 8, 40)
+            + min(correct_listening * 8, 40)
+            + min(correct_choice * 2, 20)
+        )
+        aprobado = puntaje >= Decimal('80')
+
+        ExamenIntento.objects.create(
+            perfil=perfil,
+            tipo=tipo,
+            nivel_objetivo=nivel_activo,
+            puntaje=puntaje,
+            aprobado=aprobado,
+        )
+
+        request.session.pop('examen_promocion_ids', None)
+
+        return redirect(reverse_lazy('progress:dashboard'))
 
 
 class CertificateView(LoginRequiredMixin, TemplateView):

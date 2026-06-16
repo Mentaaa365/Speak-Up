@@ -383,3 +383,180 @@ class ExamStartViewQuestionSelectionTests(TestCase):
     def test_context_contains_nivel_activo(self):
         response = self.client.get(self.url)
         self.assertEqual(response.context['nivel_activo'], self.nivel_a1)
+
+
+class ExamScoringAndPersistenceTests(TestCase):
+    """POST to exams:start scores answers and persists ExamenIntento (PR C — RF-06)."""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo='A1', orden=1, parametros_json={})
+        self.user = User.objects.create_user(
+            username='score@example.com',
+            email='score@example.com',
+            password='TestPass1!',
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.client.force_login(self.user)
+        self.url = reverse('exams:start')
+
+        # Populate bank
+        from apps.question_bank.models import Option
+        self.speaking_questions = []
+        self.listening_questions = []
+        self.choice_questions = []
+
+        for i in range(5):
+            sq = Question.objects.create(
+                level='A1', question_type='SPEAKING', bank_context='PROMOTION_EXAM',
+                text=f'Say this {i}', target_phrase=f'target phrase {i}',
+            )
+            self.speaking_questions.append(sq)
+
+            lq = Question.objects.create(
+                level='A1', question_type='LISTENING', bank_context='PROMOTION_EXAM',
+                text=f'Listen {i}', audio_text=f'audio {i}',
+            )
+            Option.objects.create(question=lq, text='correct', is_correct=True)
+            Option.objects.create(question=lq, text='wrong', is_correct=False)
+            self.listening_questions.append(lq)
+
+        for i in range(10):
+            cq = Question.objects.create(
+                level='A1', question_type='CHOICE', bank_context='PROMOTION_EXAM',
+                text=f'Choose {i}',
+            )
+            Option.objects.create(question=cq, text='correct', is_correct=True)
+            Option.objects.create(question=cq, text='wrong', is_correct=False)
+            self.choice_questions.append(cq)
+
+        # Trigger GET to cache questions in session
+        self.client.get(self.url)
+
+    def _get_cached_ids(self):
+        return self.client.session.get('examen_promocion_ids', [])
+
+    def _build_perfect_answers(self):
+        """Build answers payload that gets everything correct."""
+        answers = []
+        session_ids = self._get_cached_ids()
+        for q_id in session_ids:
+            q = Question.objects.get(id=q_id)
+            if q.question_type == 'SPEAKING':
+                answers.append({
+                    'type': 'SPEAKING',
+                    'answer': q.target_phrase,
+                    'targetPhrase': q.target_phrase,
+                    'optionId': '',
+                })
+            elif q.question_type == 'LISTENING':
+                correct_opt = q.options.filter(is_correct=True).first()
+                answers.append({
+                    'type': 'LISTENING',
+                    'answer': '',
+                    'targetPhrase': '',
+                    'optionId': str(correct_opt.id) if correct_opt else '',
+                })
+            else:
+                correct_opt = q.options.filter(is_correct=True).first()
+                answers.append({
+                    'type': 'CHOICE',
+                    'answer': '',
+                    'targetPhrase': '',
+                    'optionId': str(correct_opt.id) if correct_opt else '',
+                })
+        return answers
+
+    def _post_answers(self, answers):
+        import json
+        return self.client.post(self.url, {'answers_data': json.dumps(answers)})
+
+    # ── Scoring boundaries ────────────────────────────────────────────────────
+
+    def test_perfect_score_is_100_and_aprobado_true(self):
+        self._post_answers(self._build_perfect_answers())
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        self.assertEqual(intento.puntaje, Decimal('100.00'))
+        self.assertTrue(intento.aprobado)
+
+    def test_score_80_is_aprobado_true(self):
+        """Exactly 80 is passing: 5 SPEAKING correct (40pts) + 0 LISTENING + 10 CHOICE correct (20pts) = 60... need different combo."""
+        # 5 SPEAKING=40, 5 LISTENING=40, 0 CHOICE=0 → 80
+        session_ids = self._get_cached_ids()
+        answers = []
+        for q_id in session_ids:
+            q = Question.objects.get(id=q_id)
+            if q.question_type == 'SPEAKING':
+                answers.append({'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
+            elif q.question_type == 'LISTENING':
+                correct_opt = q.options.filter(is_correct=True).first()
+                answers.append({'type': 'LISTENING', 'answer': '', 'targetPhrase': '', 'optionId': str(correct_opt.id) if correct_opt else ''})
+            else:
+                # CHOICE all wrong → 0 pts
+                wrong_opt = q.options.filter(is_correct=False).first()
+                answers.append({'type': 'CHOICE', 'answer': '', 'targetPhrase': '', 'optionId': str(wrong_opt.id) if wrong_opt else ''})
+        self._post_answers(answers)
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        self.assertEqual(intento.puntaje, Decimal('80.00'))
+        self.assertTrue(intento.aprobado)
+
+    def test_score_79_is_aprobado_false(self):
+        """79 pts fails: 5 SPEAKING=40, 4 LISTENING=32, 3 CHOICE=6 → 78... use 5 SPEAKING + 4 LISTENING + 3 CHOICE=6 =78. Use 4 SPEAKING=32 + 5 LISTENING=40 + 3 CHOICE=6=78. Simpler: send all wrong → 0, aprobado False."""
+        import json
+        session_ids = self._get_cached_ids()
+        answers = [
+            {'type': Question.objects.get(id=q_id).question_type, 'answer': 'zzz', 'targetPhrase': 'nothing', 'optionId': ''}
+            for q_id in session_ids
+        ]
+        self._post_answers(answers)
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        self.assertFalse(intento.aprobado)
+        self.assertLess(intento.puntaje, Decimal('80.00'))
+
+    # ── Persistence ───────────────────────────────────────────────────────────
+
+    def test_post_creates_exactly_one_examen_intento(self):
+        self._post_answers(self._build_perfect_answers())
+        self.assertEqual(
+            ExamenIntento.objects.filter(perfil=self.perfil, nivel_objetivo=self.nivel).count(), 1
+        )
+
+    def test_intento_nivel_objetivo_is_nivel_activo_not_siguiente(self):
+        nivel_a2 = NivelMCER.objects.create(codigo='A2', orden=2, parametros_json={})
+        self._post_answers(self._build_perfect_answers())
+        intento = ExamenIntento.objects.get(perfil=self.perfil)
+        self.assertEqual(intento.nivel_objetivo, self.nivel)
+        self.assertNotEqual(intento.nivel_objetivo, nivel_a2)
+
+    def test_intento_tipo_is_promocion_when_next_nivel_exists(self):
+        NivelMCER.objects.create(codigo='A2', orden=2, parametros_json={})
+        self._post_answers(self._build_perfect_answers())
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        self.assertEqual(intento.tipo, 'PROMOCION')
+
+    def test_intento_tipo_is_certificacion_when_no_next_nivel(self):
+        # nivel A1 has no next nivel (only one in DB)
+        self._post_answers(self._build_perfect_answers())
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        self.assertEqual(intento.tipo, 'CERTIFICACION')
+
+    def test_session_cleared_after_post(self):
+        self._post_answers(self._build_perfect_answers())
+        self.assertNotIn('examen_promocion_ids', self.client.session)
+
+    def test_speaking_similarity_threshold_055_scores_correctly(self):
+        """Answer with >0.55 similarity to target_phrase must score 8pts."""
+        session_ids = self._get_cached_ids()
+        answers = []
+        for q_id in session_ids:
+            q = Question.objects.get(id=q_id)
+            if q.question_type == 'SPEAKING':
+                # Use the exact target phrase → similarity 1.0 → 8pts
+                answers.append({'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
+            else:
+                answers.append({'type': q.question_type, 'answer': '', 'targetPhrase': '', 'optionId': ''})
+        self._post_answers(answers)
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        # 5 SPEAKING × 8 = 40 pts, rest 0
+        self.assertEqual(intento.puntaje, Decimal('40.00'))

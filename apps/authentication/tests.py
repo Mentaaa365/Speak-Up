@@ -90,6 +90,43 @@ class PerfilSignalTests(TestCase):
         self.assertIsNone(perfil.nivel_mcer)
 
 
+class LoginRedirectTests(TestCase):
+    """SpeakUpLoginView redirects correctly based on profile state."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="redir@example.com",
+            email="redir@example.com",
+            password="ValidPass1!",
+        )
+
+    def test_new_user_redirects_to_diagnosis_welcome(self):
+        response = self.client.post(
+            "/authentication/login/",
+            {"username": "redir@example.com", "password": "ValidPass1!"},
+        )
+        self.assertRedirects(
+            response,
+            "/diagnosis/speaking/",
+            fetch_redirect_response=False,
+        )
+
+    def test_returning_user_redirects_to_dashboard(self):
+        nivel = NivelMCER.objects.create(codigo="A1", orden=1)
+        self.user.perfil.nivel_mcer = nivel
+        self.user.perfil.save()
+
+        response = self.client.post(
+            "/authentication/login/",
+            {"username": "redir@example.com", "password": "ValidPass1!"},
+        )
+        self.assertRedirects(
+            response,
+            "/progress/dashboard/",
+            fetch_redirect_response=False,
+        )
+
+
 class PasswordResetTokenTests(TestCase):
     """PasswordResetToken: TTL, single-active-per-user, invalidation on use."""
 

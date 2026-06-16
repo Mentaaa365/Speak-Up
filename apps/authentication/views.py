@@ -22,7 +22,7 @@ class SpeakUpLoginView(LoginView):
         
         # 2. Si es un usuario nuevo, lo enviamos al examen. 
         # La ruta correcta es 'diagnosis:welcome' o 'diagnosis:test_run' (Nunca 'test' a secas)
-        return reverse_lazy('diagnosis:test_run')
+        return reverse_lazy('diagnosis:welcome')
 
 # VISTA DE REGISTRO ACTUALIZADA:
 class SpeakUpRegisterView(TemplateView):

@@ -3,18 +3,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.http import JsonResponse
 from apps.question_bank.models import Question, Option
+from apps.shared.utils import _similitud
 from django.shortcuts import render
 import json
-from difflib import SequenceMatcher
 import random
-
-
-# ─────────────────────────────────────────────
-#  UTILIDAD: Similitud fonética básica
-# ─────────────────────────────────────────────
-def _similitud(a: str, b: str) -> float:
-    """Retorna un valor 0.0-1.0 de similitud entre dos textos."""
-    return SequenceMatcher(None, a.lower().strip(), b.lower().strip()).ratio()
 
 
 # ─────────────────────────────────────────────

@@ -4,10 +4,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.urls import reverse
 
 from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER
 from apps.exams.models import Certificado, ExamenIntento
+from apps.question_bank.models import Question
 
 User = get_user_model()
 
@@ -166,3 +168,130 @@ class CertificadoTests(TestCase):
             nivel=self.nivel,
         )
         self.assertEqual(self.examen.certificado, certificado)
+
+
+class ExamStartViewGuardTests(TestCase):
+    """ExamStartView enforces 5 entry guards in strict order (PR A — RF-06)."""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo='A1', orden=1, parametros_json={})
+        self.user = User.objects.create_user(
+            username='examstart@example.com',
+            email='examstart@example.com',
+            password='TestPass1!',
+        )
+        self.perfil = self.user.perfil
+        self.client.force_login(self.user)
+        self.url = reverse('exams:start')
+
+    def _populate_bank(self):
+        for i in range(5):
+            Question.objects.create(
+                level='A1', question_type='SPEAKING', bank_context='PROMOTION_EXAM',
+                text=f'Speak phrase {i}', target_phrase=f'phrase {i}',
+            )
+            Question.objects.create(
+                level='A1', question_type='LISTENING', bank_context='PROMOTION_EXAM',
+                text=f'Listen question {i}', audio_text=f'audio {i}',
+            )
+        for i in range(10):
+            Question.objects.create(
+                level='A1', question_type='CHOICE', bank_context='PROMOTION_EXAM',
+                text=f'Choose answer {i}',
+            )
+
+    # ── Guard 1: no nivel_mcer ────────────────────────────────────────────────
+
+    def test_guard1_no_nivel_mcer_redirects_to_diagnosis(self):
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response, reverse('diagnosis:welcome'), fetch_redirect_response=False
+        )
+
+    # ── Guard 2: Certificado already exists ───────────────────────────────────
+
+    def test_guard2_certificado_exists_redirects_to_certificate(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        examen = ExamenIntento.objects.create(
+            perfil=self.perfil, tipo='CERTIFICACION', nivel_objetivo=self.nivel,
+            puntaje=Decimal('90.00'), aprobado=True,
+        )
+        Certificado.objects.create(examen=examen, codigo_hash='a' * 64, nivel=self.nivel)
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response, reverse('exams:certificate'), fetch_redirect_response=False
+        )
+
+    # ── Guard 3: already approved attempt (PROMOCION passed) ─────────────────
+
+    def test_guard3_approved_attempt_redirects_to_dashboard(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        ExamenIntento.objects.create(
+            perfil=self.perfil, tipo='PROMOCION', nivel_objetivo=self.nivel,
+            puntaje=Decimal('85.00'), aprobado=True,
+        )
+        response = self.client.get(self.url)
+        self.assertRedirects(
+            response, reverse('progress:dashboard'), fetch_redirect_response=False
+        )
+
+    # ── Guard 4: 2 failed attempts exhausted ─────────────────────────────────
+
+    def test_guard4_two_failed_attempts_shows_exhausted_message(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        for _ in range(2):
+            ExamenIntento.objects.create(
+                perfil=self.perfil, tipo='PROMOCION', nivel_objetivo=self.nivel,
+                puntaje=Decimal('70.00'), aprobado=False,
+            )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('agotado', response.content.decode())
+
+    def test_guard4_one_attempt_does_not_block(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        ExamenIntento.objects.create(
+            perfil=self.perfil, tipo='PROMOCION', nivel_objetivo=self.nivel,
+            puntaje=Decimal('70.00'), aprobado=False,
+        )
+        self._populate_bank()
+        response = self.client.get(self.url)
+        # Guard 4 must NOT fire — falls through to guard 5 (bank ok) → 200 stub
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('agotado', response.content.decode())
+
+    # ── Guard 5: bank insufficient ────────────────────────────────────────────
+
+    def test_guard5_empty_bank_shows_unavailable_message(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('aún no tiene preguntas', response.content.decode())
+
+    def test_guard5_partial_bank_shows_unavailable_message(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        # Only 3 SPEAKING — not enough
+        for i in range(3):
+            Question.objects.create(
+                level='A1', question_type='SPEAKING', bank_context='PROMOTION_EXAM',
+                text=f'Speak {i}', target_phrase=f'phrase {i}',
+            )
+        response = self.client.get(self.url)
+        self.assertIn('aún no tiene preguntas', response.content.decode())
+
+    # ── All guards pass ───────────────────────────────────────────────────────
+
+    def test_all_guards_pass_returns_200(self):
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self._populate_bank()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('aún no tiene preguntas', response.content.decode())
+        self.assertNotIn('agotado', response.content.decode())

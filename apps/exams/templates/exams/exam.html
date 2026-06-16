@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="max-width: 760px; margin: 40px auto; padding: 0 24px;">
+
+    {% if error %}
+    <div style="background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 28px 32px; text-align: center;">
+        <p style="font-size: 18px; margin: 0 0 8px 0;">⚠️</p>
+        <p style="font-size: 15px; font-weight: 600; color: #991B1B; margin: 0 0 20px 0;">{{ error }}</p>
+        <a href="{% url 'progress:dashboard' %}" style="font-size: 14px; font-weight: 700; color: #4F46E5; text-decoration: none;">
+            ← Volver al Dashboard
+        </a>
+    </div>
+
+    {% else %}
+    <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 40px; text-align: center;">
+        <h1 style="font-size: 22px; font-weight: 800; color: #1F2937; margin: 0 0 12px 0;">
+            Examen de Promoción — Nivel {{ nivel_activo.codigo }}
+        </h1>
+        <p style="font-size: 14px; color: #6B7280; margin: 0;">
+            Cargando preguntas...
+        </p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock content %}

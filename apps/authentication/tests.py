@@ -1,11 +1,14 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.authentication.backends import EmailBackend
+from apps.authentication.forms import PasswordResetRequestForm, SetNewPasswordForm
 from apps.authentication.models import PasswordResetToken, Perfil
 from apps.curriculum.models import NivelMCER
 
@@ -187,3 +190,40 @@ class PasswordResetTokenTests(TestCase):
             ).count(),
             1,
         )
+
+
+class PasswordResetRequestFormTests(TestCase):
+    """PasswordResetRequestForm: email field validation."""
+
+    def test_valid_email_is_accepted(self):
+        form = PasswordResetRequestForm({'email': 'student@example.com'})
+        self.assertTrue(form.is_valid())
+
+    def test_invalid_email_format_is_rejected(self):
+        form = PasswordResetRequestForm({'email': 'not-an-email'})
+        self.assertFalse(form.is_valid())
+
+    def test_empty_email_is_rejected(self):
+        form = PasswordResetRequestForm({'email': ''})
+        self.assertFalse(form.is_valid())
+
+
+class SetNewPasswordFormTests(TestCase):
+    """SetNewPasswordForm: password match and strength validation."""
+
+    VALID_PASSWORD = 'ValidPass123!'
+
+    def test_matching_strong_passwords_are_valid(self):
+        data = {'new_password1': self.VALID_PASSWORD, 'new_password2': self.VALID_PASSWORD}
+        form = SetNewPasswordForm(data)
+        self.assertTrue(form.is_valid())
+
+    def test_non_matching_passwords_are_rejected(self):
+        data = {'new_password1': self.VALID_PASSWORD, 'new_password2': 'DifferentPass1!'}
+        form = SetNewPasswordForm(data)
+        self.assertFalse(form.is_valid())
+
+    def test_weak_password_is_rejected(self):
+        data = {'new_password1': '123', 'new_password2': '123'}
+        form = SetNewPasswordForm(data)
+        self.assertFalse(form.is_valid())

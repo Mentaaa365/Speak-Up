@@ -186,7 +186,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             'disponible':         examen_disponible,
             'intentos_restantes': max(0, 2 - intentos_usados),
             'titulo':             titulo_examen,
-            'url':                '#',  # placeholder until exams:start is implemented (Fase 3)
+            'url':                reverse_lazy('exams:start'),
         }
 
         return context

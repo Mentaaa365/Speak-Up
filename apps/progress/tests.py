@@ -37,18 +37,9 @@ class DashboardURLsTests(TestCase):
         response = self.client.get(reverse("progress:dashboard"))
         self.assertIn("url", response.context["examen"])
 
-    def test_dashboard_html_does_not_contain_hardcoded_exams_start(self):
-        # Make exam available by marking all submódulos complete
-        ejercicio = Ejercicio.objects.create(
-            submodulo=Submodulo.objects.first(),
-            contenido_json={},
-            nivel_dificultad="A1",
-        )
-        IntentoEjercicio.objects.create(
-            perfil=self.perfil, ejercicio=ejercicio, puntaje=90
-        )
+    def test_examen_url_resolves_to_exams_start(self):
         response = self.client.get(reverse("progress:dashboard"))
-        self.assertNotIn('href="/exams/start/"', response.content.decode())
+        self.assertEqual(str(response.context["examen"]["url"]), reverse("exams:start"))
 
 
 class ProgressDetailTemplateDynamicTests(TestCase):

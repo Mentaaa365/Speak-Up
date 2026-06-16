@@ -1,6 +1,8 @@
+from django.core.management import call_command
 from django.db import models
 from django.test import TestCase
 
+from apps.curriculum.models import NivelMCER
 from apps.question_bank.models import Option, Question
 
 
@@ -62,3 +64,51 @@ class OptionQuestionForeignKeyTests(TestCase):
         question.delete()
 
         self.assertEqual(Option.objects.count(), 0)
+
+
+class SeedPromoQuestionsCommandTests(TestCase):
+    """seed_promo_questions management command creates correct questions idempotently."""
+
+    def setUp(self):
+        NivelMCER.objects.create(codigo='A1', orden=1, parametros_json={})
+        NivelMCER.objects.create(codigo='A2', orden=2, parametros_json={})
+        NivelMCER.objects.create(codigo='B1', orden=3, parametros_json={})
+
+    def test_creates_5_speaking_per_level(self):
+        call_command('seed_promo_questions', verbosity=0)
+        for codigo in ['A1', 'A2', 'B1']:
+            self.assertEqual(
+                Question.objects.filter(level=codigo, question_type='SPEAKING', bank_context='PROMOTION_EXAM').count(), 5
+            )
+
+    def test_creates_5_listening_per_level(self):
+        call_command('seed_promo_questions', verbosity=0)
+        for codigo in ['A1', 'A2', 'B1']:
+            self.assertEqual(
+                Question.objects.filter(level=codigo, question_type='LISTENING', bank_context='PROMOTION_EXAM').count(), 5
+            )
+
+    def test_creates_10_choice_per_level(self):
+        call_command('seed_promo_questions', verbosity=0)
+        for codigo in ['A1', 'A2', 'B1']:
+            self.assertEqual(
+                Question.objects.filter(level=codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM').count(), 10
+            )
+
+    def test_total_questions_are_60(self):
+        call_command('seed_promo_questions', verbosity=0)
+        self.assertEqual(
+            Question.objects.filter(bank_context='PROMOTION_EXAM').count(), 60
+        )
+
+    def test_is_idempotent(self):
+        call_command('seed_promo_questions', verbosity=0)
+        call_command('seed_promo_questions', verbosity=0)
+        self.assertEqual(
+            Question.objects.filter(bank_context='PROMOTION_EXAM').count(), 60
+        )
+
+    def test_choice_questions_have_correct_option(self):
+        call_command('seed_promo_questions', verbosity=0)
+        for q in Question.objects.filter(question_type='CHOICE', bank_context='PROMOTION_EXAM'):
+            self.assertTrue(q.options.filter(is_correct=True).exists())

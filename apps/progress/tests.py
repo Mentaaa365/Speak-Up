@@ -10,6 +10,39 @@ from apps.progress.models import IntentoEjercicio
 User = get_user_model()
 
 
+class ProgressDetailTemplateDynamicTests(TestCase):
+    """progress_detail.html must render context values, not hardcoded mockup data."""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(
+            codigo="A1", orden=1, parametros_json={"nombre_descriptivo": "Principiante"}
+        )
+        self.user = User.objects.create_user(
+            username="detail@example.com", email="detail@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.client.force_login(self.user)
+
+    def test_detail_shows_actual_nivel_not_hardcoded_a2(self):
+        response = self.client.get(reverse("progress:detail"))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        # The hardcoded template always says "Nivel actual: A2" — fix must show A1
+        self.assertNotIn("Nivel actual: A2", content)
+        self.assertIn("A1", content)
+
+    def test_detail_global_progress_is_zero_for_new_user(self):
+        response = self.client.get(reverse("progress:detail"))
+        self.assertEqual(response.context["global_progress"], 0)
+
+    def test_detail_template_does_not_contain_hardcoded_33_percent(self):
+        response = self.client.get(reverse("progress:detail"))
+        # The mockup had ">33%<" hardcoded; after the fix it must not appear
+        self.assertNotIn(">33%<", response.content.decode())
+
+
 class DashboardIntentosRestantesTests(TestCase):
     """intentos_restantes must reflect real ExamenIntento records, not a hardcoded 2."""
 

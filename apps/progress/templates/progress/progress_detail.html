@@ -3,173 +3,122 @@
 
 {% block content %}
 <div style="padding: 24px 28px; max-width: 1200px; margin: 0 auto;">
-    
+
     <header style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 24px;">
         <div>
             <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0 0 4px 0;">Desglose de Progreso</h1>
-            <p style="font-size: 13px; color: var(--g400); margin: 0;">Analíticas y métricas de avance · Nivel actual: A2</p>
+            <p style="font-size: 13px; color: var(--g400); margin: 0;">Analíticas y métricas de avance · Nivel actual: {{ nivel_activo.codigo }}</p>
         </div>
-        <span style="background: var(--primary-light); color: var(--primary); font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px;">Nivel A2 activo</span>
+        <span style="background: var(--primary-light); color: var(--primary); font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px;">Nivel {{ nivel_activo.codigo }} activo</span>
     </header>
 
     <section style="background: #FFFFFF; border: 1px solid var(--g200); border-radius: 14px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.02);">
         <p style="font-size: 14px; font-weight: 800; color: var(--g700); margin: 0 0 4px 0;">📊 Progreso Global del Sistema</p>
         <p style="font-size: 12.5px; color: var(--g400); margin: 0 0 16px 0;">Contabiliza el total de actividades superadas en la plataforma.</p>
-        
+
         <header style="display: flex; justify-content: space-between; margin-bottom: 6px;">
             <span style="font-size: 12.5px; color: var(--g500); font-weight: 600;">Avance general</span>
-            <span style="font-size: 13px; font-weight: 800; color: var(--primary);">33%</span>
+            <span style="font-size: 13px; font-weight: 800; color: var(--primary);">{{ global_progress }}%</span>
         </header>
         <div style="height: 10px; background: var(--g100); border-radius: 999px;">
-            <div style="height: 100%; width: 33%; background: var(--primary); border-radius: 999px;"></div>
+            <div style="height: 100%; width: {{ global_progress }}%; background: var(--primary); border-radius: 999px;"></div>
         </div>
-        
+
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 20px;">
             <article style="background: var(--g50); border-radius: 10px; padding: 14px; text-align: center;">
-                <p style="font-size: 22px; font-weight: 800; color: var(--primary); margin: 0 0 2px 0;">3/9</p>
-                <p style="font-size: 11.5px; color: var(--g500); margin: 0; font-weight: 600;">Submódulos</p>
-            </article>
-            <article style="background: var(--g50); border-radius: 10px; padding: 14px; text-align: center;">
-                <p style="font-size: 22px; font-weight: 800; color: var(--primary); margin: 0 0 2px 0;">3</p>
-                <p style="font-size: 11.5px; color: var(--g500); margin: 0; font-weight: 600;">Sesiones IA</p>
-            </article>
-            <article style="background: var(--g50); border-radius: 10px; padding: 14px; text-align: center;">
-                <p style="font-size: 22px; font-weight: 800; color: var(--primary); margin: 0 0 2px 0;">6</p>
-                <p style="font-size: 11.5px; color: var(--g500); margin: 0; font-weight: 600;">Canciones</p>
-            </article>
-            <article style="background: var(--g50); border-radius: 10px; padding: 14px; text-align: center;">
-                <p style="font-size: 22px; font-weight: 800; color: var(--primary); margin: 0 0 2px 0;">1</p>
-                <p style="font-size: 11.5px; color: var(--g500); margin: 0; font-weight: 600;">Exámenes</p>
+                <p style="font-size: 22px; font-weight: 800; color: var(--primary); margin: 0 0 2px 0;">{{ ejercicios_exitosos }}/{{ total_ejercicios }}</p>
+                <p style="font-size: 11.5px; color: var(--g500); margin: 0; font-weight: 600;">Ejercicios</p>
             </article>
         </div>
     </section>
 
-    <section style="border: 1.5px solid var(--secondary); border-radius: 14px; padding: 20px; margin-bottom: 16px; background: #F0FDF4;">
-        <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <aside style="display: flex; gap: 14px; align-items: center;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: var(--secondary-light); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--secondary);">A1</div>
-                <div>
-                    <p style="font-size: 16px; font-weight: 800; color: var(--g800); margin: 0;">Nivel A1</p>
-                    <p style="font-size: 12.5px; color: var(--g500); margin: 0; font-weight: 500;">3/3 submódulos · 100% progreso</p>
-                </div>
-            </aside>
-            <span style="background: var(--secondary-light); color: var(--secondary); font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px;">✅ Completado</span>
-        </header>
-        
-        <div style="margin-bottom: 16px;">
-            <header style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="font-size: 12px; color: var(--g500); font-weight: 600;">Barra por Nivel MCER</span>
-                <span style="font-size: 12px; font-weight: 800; color: var(--secondary);">100%</span>
+    {% for nivel in niveles %}
+        {% if nivel.estado == 'completado' %}
+        <section style="border: 1.5px solid var(--secondary); border-radius: 14px; padding: 20px; margin-bottom: 16px; background: #F0FDF4;">
+            <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <aside style="display: flex; gap: 14px; align-items: center;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: var(--secondary-light); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--secondary);">{{ nivel.codigo }}</div>
+                    <div>
+                        <p style="font-size: 16px; font-weight: 800; color: var(--g800); margin: 0;">Nivel {{ nivel.codigo }}</p>
+                        <p style="font-size: 12.5px; color: var(--g500); margin: 0; font-weight: 500;">{{ nivel.sub_completados }}/{{ nivel.total_subs }} submódulos · 100% progreso</p>
+                    </div>
+                </aside>
+                <span style="background: var(--secondary-light); color: var(--secondary); font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px;">✅ Completado</span>
             </header>
             <div style="height: 8px; background: var(--g200); border-radius: 999px;">
                 <div style="height: 100%; width: 100%; background: var(--secondary); border-radius: 999px;"></div>
             </div>
-        </div>
+        </section>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-            <article style="background: var(--secondary-light); border: 1px solid var(--secondary); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">✅</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Vocabulario</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 100%; background: var(--secondary); border-radius: 999px;"></div></div>
-                <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">100%</p>
-            </article>
-            <article style="background: var(--secondary-light); border: 1px solid var(--secondary); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">✅</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Música</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 100%; background: var(--secondary); border-radius: 999px;"></div></div>
-                <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">100%</p>
-            </article>
-            <article style="background: var(--secondary-light); border: 1px solid var(--secondary); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">✅</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Entrevista IA</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 100%; background: var(--secondary); border-radius: 999px;"></div></div>
-                <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">100%</p>
-            </article>
-        </div>
-    </section>
-
-    <section style="border: 1.5px solid var(--primary); border-radius: 14px; padding: 20px; margin-bottom: 16px; background: var(--primary-light);">
-        <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <aside style="display: flex; gap: 14px; align-items: center;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--primary); border: 1px solid rgba(79, 70, 229, 0.2);">A2</div>
-                <div>
-                    <p style="font-size: 16px; font-weight: 800; color: var(--g800); margin: 0;">Nivel A2</p>
-                    <p style="font-size: 12.5px; color: var(--g500); margin: 0; font-weight: 500;">0/3 submódulos · 27% progreso</p>
-                </div>
-            </aside>
-            <span style="background: #FFFFFF; border: 1px solid var(--primary); color: var(--primary); font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px;">⚡ En curso</span>
-        </header>
-        
-        <div style="margin-bottom: 16px;">
-            <header style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="font-size: 12px; color: var(--g500); font-weight: 600;">Barra por Nivel MCER</span>
-                <span style="font-size: 12px; font-weight: 800; color: var(--primary);">27%</span>
+        {% elif nivel.estado == 'activo' %}
+        <section style="border: 1.5px solid var(--primary); border-radius: 14px; padding: 20px; margin-bottom: 16px; background: var(--primary-light);">
+            <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <aside style="display: flex; gap: 14px; align-items: center;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--primary); border: 1px solid rgba(79, 70, 229, 0.2);">{{ nivel.codigo }}</div>
+                    <div>
+                        <p style="font-size: 16px; font-weight: 800; color: var(--g800); margin: 0;">Nivel {{ nivel.codigo }}</p>
+                        <p style="font-size: 12.5px; color: var(--g500); margin: 0; font-weight: 500;">{{ nivel.sub_completados }}/{{ nivel.total_subs }} submódulos · {{ nivel.progreso }}% progreso</p>
+                    </div>
+                </aside>
+                <span style="background: #FFFFFF; border: 1px solid var(--primary); color: var(--primary); font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px;">⚡ En curso</span>
             </header>
-            <div style="height: 8px; background: var(--g200); border-radius: 999px;">
-                <div style="height: 100%; width: 27%; background: var(--primary); border-radius: 999px;"></div>
-            </div>
-        </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-            <article style="background: #FFFFFF; border: 1px solid var(--primary); border-radius: 10px; padding: 14px; text-align: center; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);">
-                <div style="font-size: 18px; margin-bottom: 6px;">▶️</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Vocabulario</p>
-                <div style="height: 6px; background: var(--g100); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 60%; background: var(--primary); border-radius: 999px;"></div></div>
-                <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">60%</p>
-            </article>
-            <article style="background: #FFFFFF; border: 1px solid var(--g200); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">⏸️</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Música</p>
-                <div style="height: 6px; background: var(--g100); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 20%; background: var(--primary); border-radius: 999px;"></div></div>
-                <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">20%</p>
-            </article>
-            <article style="background: var(--g50); border: 1px solid var(--g200); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">🔒</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Entrevista IA</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 0%; background: var(--primary); border-radius: 999px;"></div></div>
-                <p style="font-size: 11px; color: var(--g500); margin: 0; font-weight: 600;">0%</p>
-            </article>
-        </div>
-    </section>
-
-    <section style="border: 1.5px solid var(--g200); border-radius: 14px; padding: 20px; background: #FFFFFF; opacity: 0.65;">
-        <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <aside style="display: flex; gap: 14px; align-items: center;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: var(--g100); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--g400);">🔒</div>
-                <div>
-                    <p style="font-size: 16px; font-weight: 800; color: var(--g800); margin: 0;">Nivel B1</p>
-                    <p style="font-size: 12.5px; color: var(--g500); margin: 0; font-weight: 500;">0/3 submódulos · 0% progreso</p>
+            <div style="margin-bottom: 16px;">
+                <header style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 12px; color: var(--g500); font-weight: 600;">Barra por Nivel MCER</span>
+                    <span style="font-size: 12px; font-weight: 800; color: var(--primary);">{{ nivel.progreso }}%</span>
+                </header>
+                <div style="height: 8px; background: var(--g200); border-radius: 999px;">
+                    <div style="height: 100%; width: {{ nivel.progreso }}%; background: var(--primary); border-radius: 999px;"></div>
                 </div>
-            </aside>
-            <span style="background: var(--g100); color: var(--g500); font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px;">🔒 Bloqueado</span>
-        </header>
-        
-        <div style="margin-bottom: 16px;">
-            <header style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                <span style="font-size: 12px; color: var(--g400); font-weight: 600;">Barra por Nivel MCER</span>
-                <span style="font-size: 12px; font-weight: 800; color: var(--g400);">0%</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                {% for sub in submodulos %}
+                    {% if sub.completado %}
+                    <article style="background: var(--secondary-light); border: 1px solid var(--secondary); border-radius: 10px; padding: 14px; text-align: center;">
+                        <div style="font-size: 18px; margin-bottom: 6px;">✅</div>
+                        <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">{{ sub.nombre }}</p>
+                        <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: 100%; background: var(--secondary); border-radius: 999px;"></div></div>
+                        <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">100%</p>
+                    </article>
+                    {% elif sub.progreso > 0 %}
+                    <article style="background: #FFFFFF; border: 1px solid var(--primary); border-radius: 10px; padding: 14px; text-align: center; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);">
+                        <div style="font-size: 18px; margin-bottom: 6px;">▶️</div>
+                        <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">{{ sub.nombre }}</p>
+                        <div style="height: 6px; background: var(--g100); border-radius: 999px; margin-bottom: 6px;"><div style="height: 100%; width: {{ sub.progreso }}%; background: var(--primary); border-radius: 999px;"></div></div>
+                        <p style="font-size: 11px; color: var(--g600); margin: 0; font-weight: 600;">{{ sub.progreso }}%</p>
+                    </article>
+                    {% else %}
+                    <article style="background: var(--g50); border: 1px solid var(--g200); border-radius: 10px; padding: 14px; text-align: center;">
+                        <div style="font-size: 18px; margin-bottom: 6px;">🔒</div>
+                        <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">{{ sub.nombre }}</p>
+                        <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"></div>
+                        <p style="font-size: 11px; color: var(--g500); margin: 0; font-weight: 600;">0%</p>
+                    </article>
+                    {% endif %}
+                {% empty %}
+                    <p style="font-size: 13px; color: var(--g400);">No hay submódulos configurados para este nivel.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        {% else %}
+        <section style="border: 1.5px solid var(--g200); border-radius: 14px; padding: 20px; background: #FFFFFF; opacity: 0.65; margin-bottom: 16px;">
+            <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                <aside style="display: flex; gap: 14px; align-items: center;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: var(--g100); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--g400);">🔒</div>
+                    <div>
+                        <p style="font-size: 16px; font-weight: 800; color: var(--g800); margin: 0;">Nivel {{ nivel.codigo }}</p>
+                        <p style="font-size: 12.5px; color: var(--g500); margin: 0; font-weight: 500;">0/{{ nivel.total_subs }} submódulos · 0% progreso</p>
+                    </div>
+                </aside>
+                <span style="background: var(--g100); color: var(--g500); font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 20px;">🔒 Bloqueado</span>
             </header>
             <div style="height: 8px; background: var(--g200); border-radius: 999px;"></div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-            <article style="background: var(--g50); border: 1px solid var(--g200); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">🔒</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Vocabulario</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"></div>
-            </article>
-            <article style="background: var(--g50); border: 1px solid var(--g200); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">🔒</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Música</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"></div>
-            </article>
-            <article style="background: var(--g50); border: 1px solid var(--g200); border-radius: 10px; padding: 14px; text-align: center;">
-                <div style="font-size: 18px; margin-bottom: 6px;">🔒</div>
-                <p style="font-size: 13px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Entrevista IA</p>
-                <div style="height: 6px; background: var(--g200); border-radius: 999px; margin-bottom: 6px;"></div>
-            </article>
-        </div>
-    </section>
+        </section>
+        {% endif %}
+    {% endfor %}
 
 </div>
 {% endblock content %}

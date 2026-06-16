@@ -118,9 +118,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # ✅ CORRECCIÓN 4: datos reales desde BD en vez de lista hardcodeada.
         #    Si la BD todavía no tiene submódulos, muestra lista vacía sin romper.
         TIPO_A_NOMBRE = {
-            'vocabulario': ('Vocabulario y Lectura',        '📖', '/learning/vocabulary/'),
-            'musica':      ('Actividades Musicales (LRC)',  '🎵', '/learning/music/'),
-            'entrevista':  ('Entrevistas Orales con IA',    '🤖', '#'),
+            'vocabulario': ('Vocabulario y Lectura',       '📖', reverse_lazy('learning:vocabulary')),
+            'musica':      ('Actividades Musicales (LRC)', '🎵', reverse_lazy('learning:music')),
+            'entrevista':  ('Entrevistas Orales con IA',   '🤖', '#'),
         }
         submodulos_data = []
 

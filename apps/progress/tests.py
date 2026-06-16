@@ -10,6 +10,47 @@ from apps.progress.models import IntentoEjercicio
 User = get_user_model()
 
 
+class DashboardURLsTests(TestCase):
+    """Dashboard context URLs must use reverse(), not hardcoded strings. (Bug 5)"""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(
+            codigo="A1", orden=1, parametros_json={}
+        )
+        submodulo = Submodulo.objects.create(nivel=self.nivel, tipo="vocabulario", orden=1)
+        self.user = User.objects.create_user(
+            username="urls@example.com", email="urls@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.client.force_login(self.user)
+
+    def test_vocabulario_url_resolves_correctly(self):
+        response = self.client.get(reverse("progress:dashboard"))
+        submodulos = response.context["submodulos"]
+        vocab = next((s for s in submodulos if "Vocabulario" in s["nombre"]), None)
+        self.assertIsNotNone(vocab)
+        self.assertEqual(str(vocab["url"]), reverse("learning:vocabulary"))
+
+    def test_examen_context_has_url_key(self):
+        response = self.client.get(reverse("progress:dashboard"))
+        self.assertIn("url", response.context["examen"])
+
+    def test_dashboard_html_does_not_contain_hardcoded_exams_start(self):
+        # Make exam available by marking all submódulos complete
+        ejercicio = Ejercicio.objects.create(
+            submodulo=Submodulo.objects.first(),
+            contenido_json={},
+            nivel_dificultad="A1",
+        )
+        IntentoEjercicio.objects.create(
+            perfil=self.perfil, ejercicio=ejercicio, puntaje=90
+        )
+        response = self.client.get(reverse("progress:dashboard"))
+        self.assertNotIn('href="/exams/start/"', response.content.decode())
+
+
 class ProgressDetailTemplateDynamicTests(TestCase):
     """progress_detail.html must render context values, not hardcoded mockup data."""
 

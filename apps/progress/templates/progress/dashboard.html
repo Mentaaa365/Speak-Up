@@ -109,7 +109,7 @@
                             <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: var(--g800);">🎯 {{ examen.titulo }}</h4>
                             <span style="font-size: 12px; font-weight: 700; color: var(--secondary);">¡Listo para certificar! Control de intentos: {{ examen.intentos_restantes }} de 2.</span>
                         </div>
-                        <a href="/exams/start/" style="font-size: 12px; font-weight: 700; color: #FFFFFF; text-decoration: none; background: var(--secondary); padding: 6px 12px; border-radius: 8px;">Rendir Examen</a>
+                        <a href="{{ examen.url }}" style="font-size: 12px; font-weight: 700; color: #FFFFFF; text-decoration: none; background: var(--secondary); padding: 6px 12px; border-radius: 8px;">Rendir Examen</a>
                     </div>
                 {% else %}
                     <div style="border: 1px dashed var(--warning); background: var(--warning-light); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">

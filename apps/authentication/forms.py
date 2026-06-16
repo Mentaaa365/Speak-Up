@@ -1,9 +1,9 @@
 # apps/authentication/forms.py
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+
 User = get_user_model()
-# 🔥 IMPORTANTE: Importa la función encargada de ejecutar los validadores de settings.py
-from django.contrib.auth.password_validation import validate_password 
 import re
 
 class RegistroForm(forms.Form):

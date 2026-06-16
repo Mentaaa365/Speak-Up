@@ -560,3 +560,126 @@ class ExamScoringAndPersistenceTests(TestCase):
         intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
         # 5 SPEAKING × 8 = 40 pts, rest 0
         self.assertEqual(intento.puntaje, Decimal('40.00'))
+
+
+class PostPassSideEffectsTests(TestCase):
+    """PR D — post-approval side effects and CertificateView (RF-06)."""
+
+    def _make_bank(self, nivel):
+        from apps.question_bank.models import Option
+        for i in range(5):
+            sq = Question.objects.create(
+                level=nivel.codigo, question_type='SPEAKING', bank_context='PROMOTION_EXAM',
+                text=f'Say {i}', target_phrase=f'phrase {i}',
+            )
+            lq = Question.objects.create(
+                level=nivel.codigo, question_type='LISTENING', bank_context='PROMOTION_EXAM',
+                text=f'Listen {i}', audio_text=f'audio {i}',
+            )
+            Option.objects.create(question=lq, text='correct', is_correct=True)
+            Option.objects.create(question=lq, text='wrong', is_correct=False)
+        for i in range(10):
+            cq = Question.objects.create(
+                level=nivel.codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM',
+                text=f'Choose {i}',
+            )
+            Option.objects.create(question=cq, text='correct', is_correct=True)
+            Option.objects.create(question=cq, text='wrong', is_correct=False)
+
+    def _build_perfect_answers(self):
+        import json
+        session_ids = self.client.session.get('examen_promocion_ids', [])
+        answers = []
+        for q_id in session_ids:
+            q = Question.objects.get(id=q_id)
+            if q.question_type == 'SPEAKING':
+                answers.append({'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
+            else:
+                correct_opt = q.options.filter(is_correct=True).first()
+                answers.append({'type': q.question_type, 'answer': '', 'targetPhrase': '', 'optionId': str(correct_opt.id) if correct_opt else ''})
+        return answers
+
+    def setUp(self):
+        self.nivel_a1 = NivelMCER.objects.create(codigo='A1', orden=1, parametros_json={})
+        self.nivel_a2 = NivelMCER.objects.create(codigo='A2', orden=2, parametros_json={})
+        self.user = User.objects.create_user(
+            username='effects@example.com', email='effects@example.com', password='TestPass1!',
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel_a1
+        self.perfil.save()
+        self.client.force_login(self.user)
+        self.url = reverse('exams:start')
+        self._make_bank(self.nivel_a1)
+
+    # ── PROMOCION pass ────────────────────────────────────────────────────────
+
+    def test_promocion_pass_advances_perfil_nivel_mcer(self):
+        self.client.get(self.url)  # cache session
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        self.perfil.refresh_from_db()
+        self.assertEqual(self.perfil.nivel_mcer, self.nivel_a2)
+
+    def test_promocion_pass_does_not_create_certificado(self):
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        self.assertEqual(Certificado.objects.filter(examen__perfil=self.perfil).count(), 0)
+
+    def test_fail_does_not_advance_nivel_mcer(self):
+        self.client.get(self.url)
+        import json
+        answers = [{'type': 'SPEAKING', 'answer': 'zzz', 'targetPhrase': 'nothing', 'optionId': ''} for _ in range(20)]
+        self.client.post(self.url, {'answers_data': json.dumps(answers)})
+        self.perfil.refresh_from_db()
+        self.assertEqual(self.perfil.nivel_mcer, self.nivel_a1)
+
+    # ── CERTIFICACION pass ────────────────────────────────────────────────────
+
+    def test_certificacion_pass_creates_certificado(self):
+        # Remove A2 so A1 is the last nivel → CERTIFICACION
+        self.nivel_a2.delete()
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        self.assertEqual(Certificado.objects.filter(examen__perfil=self.perfil).count(), 1)
+
+    def test_certificacion_certificado_nivel_is_nivel_activo(self):
+        self.nivel_a2.delete()
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        cert = Certificado.objects.get(examen__perfil=self.perfil)
+        self.assertEqual(cert.nivel, self.nivel_a1)
+
+    def test_certificacion_certificado_has_codigo_hash(self):
+        self.nivel_a2.delete()
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        cert = Certificado.objects.get(examen__perfil=self.perfil)
+        self.assertEqual(len(cert.codigo_hash), 64)
+
+    # ── CertificateView ───────────────────────────────────────────────────────
+
+    def test_certificate_view_redirects_to_dashboard_when_no_cert(self):
+        response = self.client.get(reverse('exams:certificate'))
+        self.assertRedirects(response, reverse('progress:dashboard'))
+
+    def test_certificate_view_200_when_cert_exists(self):
+        self.nivel_a2.delete()
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        response = self.client.get(reverse('exams:certificate'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_certificate_view_context_contains_certificado(self):
+        self.nivel_a2.delete()
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        response = self.client.get(reverse('exams:certificate'))
+        self.assertIn('certificado', response.context)
+
+    def test_certificate_view_context_puntaje_matches_intento(self):
+        self.nivel_a2.delete()
+        self.client.get(self.url)
+        self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
+        intento = ExamenIntento.objects.get(perfil=self.perfil)
+        response = self.client.get(reverse('exams:certificate'))
+        self.assertEqual(response.context['puntaje'], intento.puntaje)

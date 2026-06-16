@@ -1,5 +1,7 @@
+import hashlib
 import json
 import random
+import uuid
 from decimal import Decimal
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -158,7 +160,7 @@ class ExamStartView(LoginRequiredMixin, View):
         )
         aprobado = puntaje >= Decimal('80')
 
-        ExamenIntento.objects.create(
+        intento = ExamenIntento.objects.create(
             perfil=perfil,
             tipo=tipo,
             nivel_objetivo=nivel_activo,
@@ -166,13 +168,39 @@ class ExamStartView(LoginRequiredMixin, View):
             aprobado=aprobado,
         )
 
+        if aprobado:
+            if tipo == 'PROMOCION' and nivel_siguiente:
+                perfil.nivel_mcer = nivel_siguiente
+                perfil.save()
+            elif tipo == 'CERTIFICACION':
+                Certificado.objects.create(
+                    examen=intento,
+                    codigo_hash=hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest(),
+                    nivel=nivel_activo,
+                )
+
         request.session.pop('examen_promocion_ids', None)
 
         return redirect(reverse_lazy('progress:dashboard'))
 
 
-class CertificateView(LoginRequiredMixin, TemplateView):
-    """
-    Muestra la plantilla del certificado B1.
-    """
+class CertificateView(LoginRequiredMixin, View):
     template_name = 'exams/certificate.html'
+
+    def get(self, request, *args, **kwargs):
+        try:
+            perfil = Perfil.objects.get(usuario=request.user)
+        except Perfil.DoesNotExist:
+            return redirect(reverse_lazy('progress:dashboard'))
+
+        try:
+            certificado = Certificado.objects.get(examen__perfil=perfil)
+        except Certificado.DoesNotExist:
+            return redirect(reverse_lazy('progress:dashboard'))
+
+        return render(request, self.template_name, {
+            'certificado': certificado,
+            'nivel': certificado.nivel,
+            'emitido_en': certificado.emitido_en,
+            'puntaje': certificado.examen.puntaje,
+        })

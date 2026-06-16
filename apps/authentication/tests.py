@@ -1,3 +1,5 @@
+import hashlib
+import uuid
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
@@ -227,3 +229,131 @@ class SetNewPasswordFormTests(TestCase):
         data = {'new_password1': '123', 'new_password2': '123'}
         form = SetNewPasswordForm(data)
         self.assertFalse(form.is_valid())
+
+
+class PasswordResetRequestViewTests(TestCase):
+    """CustomPasswordResetRequestView: token creation, email sending, generic response (RF-02)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='reset@example.com',
+            email='reset@example.com',
+            password='OldPass123!',
+        )
+        self.url = reverse('authentication:password_reset')
+
+    def test_post_with_known_email_creates_one_active_token(self):
+        self.client.post(self.url, {'email': 'reset@example.com'})
+        self.assertEqual(
+            PasswordResetToken.objects.filter(usuario=self.user, used_at__isnull=True).count(), 1
+        )
+
+    def test_post_with_known_email_sends_one_email(self):
+        self.client.post(self.url, {'email': 'reset@example.com'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('reset@example.com', mail.outbox[0].to)
+
+    def test_post_redirects_to_done_for_known_email(self):
+        response = self.client.post(self.url, {'email': 'reset@example.com'})
+        self.assertRedirects(
+            response, reverse('authentication:password_reset_done'), fetch_redirect_response=False
+        )
+
+    def test_post_with_unknown_email_does_not_create_token(self):
+        self.client.post(self.url, {'email': 'nobody@example.com'})
+        self.assertEqual(PasswordResetToken.objects.count(), 0)
+
+    def test_post_with_unknown_email_does_not_send_email(self):
+        self.client.post(self.url, {'email': 'nobody@example.com'})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_post_with_unknown_email_redirects_to_done(self):
+        response = self.client.post(self.url, {'email': 'nobody@example.com'})
+        self.assertRedirects(
+            response, reverse('authentication:password_reset_done'), fetch_redirect_response=False
+        )
+
+    def test_new_request_invalidates_previous_active_token(self):
+        self.client.post(self.url, {'email': 'reset@example.com'})
+        first_token = PasswordResetToken.objects.get(usuario=self.user)
+        self.client.post(self.url, {'email': 'reset@example.com'})
+        first_token.refresh_from_db()
+        self.assertIsNotNone(first_token.used_at)
+        self.assertEqual(
+            PasswordResetToken.objects.filter(usuario=self.user, used_at__isnull=True).count(), 1
+        )
+
+
+class PasswordResetConfirmViewTests(TestCase):
+    """CustomPasswordResetConfirmView: token validation and password update (RF-02)."""
+
+    VALID_PASSWORD = 'NewPass123!'
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='confirm@example.com',
+            email='confirm@example.com',
+            password='OldPass123!',
+        )
+        self.raw_token = uuid.uuid4().hex
+        token_hash = hashlib.sha256(self.raw_token.encode()).hexdigest()
+        self.token_obj = PasswordResetToken.objects.create(
+            usuario=self.user,
+            token_hash=token_hash,
+            expires_at=timezone.now() + timedelta(minutes=30),
+        )
+        self.confirm_url = reverse(
+            'authentication:password_reset_confirm', kwargs={'token': self.raw_token}
+        )
+
+    def test_get_with_valid_token_shows_form(self):
+        response = self.client.get(self.confirm_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['validlink'])
+        self.assertIsNotNone(response.context['form'])
+
+    def test_get_with_expired_token_shows_invalid_link(self):
+        self.token_obj.expires_at = timezone.now() - timedelta(minutes=1)
+        self.token_obj.save()
+        response = self.client.get(self.confirm_url)
+        self.assertFalse(response.context['validlink'])
+
+    def test_get_with_used_token_shows_invalid_link(self):
+        self.token_obj.used_at = timezone.now()
+        self.token_obj.save()
+        response = self.client.get(self.confirm_url)
+        self.assertFalse(response.context['validlink'])
+
+    def test_get_with_unknown_token_shows_invalid_link(self):
+        unknown_url = reverse(
+            'authentication:password_reset_confirm', kwargs={'token': '0' * 32}
+        )
+        response = self.client.get(unknown_url)
+        self.assertFalse(response.context['validlink'])
+
+    def test_post_updates_password_and_marks_token_used(self):
+        self.client.post(
+            self.confirm_url,
+            {'new_password1': self.VALID_PASSWORD, 'new_password2': self.VALID_PASSWORD},
+        )
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.VALID_PASSWORD))
+        self.token_obj.refresh_from_db()
+        self.assertIsNotNone(self.token_obj.used_at)
+
+    def test_post_redirects_to_complete(self):
+        response = self.client.post(
+            self.confirm_url,
+            {'new_password1': self.VALID_PASSWORD, 'new_password2': self.VALID_PASSWORD},
+        )
+        self.assertRedirects(
+            response, reverse('authentication:password_reset_complete'), fetch_redirect_response=False
+        )
+
+    def test_post_with_mismatched_passwords_does_not_mark_token_used(self):
+        self.client.post(
+            self.confirm_url,
+            {'new_password1': self.VALID_PASSWORD, 'new_password2': 'DifferentPass1!'},
+        )
+        self.token_obj.refresh_from_db()
+        self.assertIsNone(self.token_obj.used_at)

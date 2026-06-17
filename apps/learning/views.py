@@ -1,15 +1,19 @@
 import json
+from decimal import Decimal
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
 from apps.authentication.models import Perfil
 from apps.curriculum.models import Ejercicio, Submodulo
+from apps.learning.ai_client import AIInterviewClient
 from apps.learning.models import SesionEntrevista
+from apps.shared.utils import _submodulo_completado
 
 
 class VocabularyLearningView(LoginRequiredMixin, View):
@@ -119,23 +123,127 @@ class AiInterviewLearningView(LoginRequiredMixin, View):
 
 class TurnoEntrevistaView(LoginRequiredMixin, View):
     """
-    WU-5b stub: POST /learning/ai-interview/turno/
-    Returns 501 until WU-5b implements the full turn logic.
+    WU-5b: POST /learning/ai-interview/turno/
+
+    Accepts a JSON body with sesion_id, transcripcion, and historial.
+    Verifies session ownership and state, then calls AIInterviewClient
+    to produce the agent's next utterance. Persists the updated historial
+    to the session and returns it alongside the agent's response.
     """
 
     http_method_names = ['post']
 
     def post(self, request, *args, **kwargs):
-        return JsonResponse({'error': 'not_implemented'}, status=501)
+        try:
+            body = json.loads(request.body)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        sesion_id = body.get('sesion_id')
+        transcripcion = body.get('transcripcion', '').strip()
+        historial = body.get('historial', [])
+
+        # Both sesion_id and transcripcion are required (empty transcripcion only
+        # allowed on the first turn where historial is also empty).
+        if not sesion_id:
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        # Fetch session and verify ownership
+        try:
+            sesion = SesionEntrevista.objects.select_related(
+                'perfil', 'submodulo__nivel'
+            ).get(pk=sesion_id)
+        except SesionEntrevista.DoesNotExist:
+            return JsonResponse({'error': 'not_found'}, status=404)
+
+        perfil = Perfil.objects.get(usuario=request.user)
+        if sesion.perfil != perfil:
+            return JsonResponse({'error': 'forbidden'}, status=403)
+
+        if sesion.estado != 'EN_CURSO':
+            return JsonResponse({'error': 'session_not_active'}, status=409)
+
+        nivel_codigo = sesion.submodulo.nivel.codigo
+        client = AIInterviewClient()
+
+        # First turn: start_session; subsequent turns: next_turn_for
+        if not historial:
+            respuesta_agente = client.start_session(nivel_codigo)
+        else:
+            respuesta_agente = client.next_turn_for(nivel_codigo, historial, transcripcion)
+
+        # Build the updated historial
+        nuevo_historial = list(historial)
+        if historial:
+            # Append student response only after the first turn
+            nuevo_historial.append({'role': 'user', 'content': transcripcion})
+        nuevo_historial.append({'role': 'assistant', 'content': respuesta_agente})
+
+        # Persist partial historial to DB
+        sesion.transcripcion_json = nuevo_historial
+        sesion.save(update_fields=['transcripcion_json'])
+
+        return JsonResponse({'respuesta': respuesta_agente, 'historial': nuevo_historial})
 
 
 class FinalizarEntrevistaView(LoginRequiredMixin, View):
     """
-    WU-5b stub: POST /learning/ai-interview/finalizar/
-    Returns 501 until WU-5b implements the full finalize logic.
+    WU-5b: POST /learning/ai-interview/finalizar/
+
+    Accepts a JSON body with sesion_id. Verifies session ownership and state,
+    calls AIInterviewClient.evaluate_session on the persisted transcript, marks
+    the session COMPLETADA with the resulting score, and returns evaluation
+    results along with the submodulo completion flag.
     """
 
     http_method_names = ['post']
 
     def post(self, request, *args, **kwargs):
-        return JsonResponse({'error': 'not_implemented'}, status=501)
+        try:
+            body = json.loads(request.body)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        sesion_id = body.get('sesion_id')
+
+        if not sesion_id:
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        try:
+            sesion = SesionEntrevista.objects.select_related(
+                'perfil__nivel_mcer', 'submodulo'
+            ).get(pk=sesion_id)
+        except SesionEntrevista.DoesNotExist:
+            return JsonResponse({'error': 'not_found'}, status=404)
+
+        perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
+        if sesion.perfil != perfil:
+            return JsonResponse({'error': 'forbidden'}, status=403)
+
+        if sesion.estado != 'EN_CURSO':
+            return JsonResponse({'error': 'session_not_active'}, status=409)
+
+        historial = sesion.transcripcion_json or []
+        if not historial:
+            return JsonResponse({'error': 'empty_session'}, status=400)
+
+        nivel_codigo = perfil.nivel_mcer.codigo
+        client = AIInterviewClient()
+        resultado = client.evaluate_session(nivel_codigo, historial)
+
+        puntaje = Decimal(str(resultado['puntaje_global']))
+        aprobado = puntaje >= 80
+
+        sesion.puntaje = puntaje
+        sesion.estado = 'COMPLETADA'
+        sesion.finalizada_en = timezone.now()
+        sesion.save(update_fields=['puntaje', 'estado', 'finalizada_en'])
+
+        submodulo_completado = _submodulo_completado(perfil, sesion.submodulo)
+
+        return JsonResponse({
+            'aprobado': aprobado,
+            'puntaje': str(puntaje),
+            'scores': resultado['scores'],
+            'submodulo_completado': submodulo_completado,
+        })

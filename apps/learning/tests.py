@@ -625,22 +625,340 @@ class AiInterviewLearningViewTests(TestCase):
         url = reverse("learning:interview_finalizar")
         self.assertTrue(url.endswith("/finalizar/"))
 
-    def test_turno_stub_returns_501(self):
-        """TurnoEntrevistaView stub returns 501 Not Implemented."""
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse("learning:interview_turno"),
-            data="{}",
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 501)
+    def test_turno_url_resolves_correct_path(self):
+        """learning:interview_turno URL path ends with /turno/."""
+        url = reverse("learning:interview_turno")
+        self.assertTrue(url.endswith("/turno/"))
 
-    def test_finalizar_stub_returns_501(self):
-        """FinalizarEntrevistaView stub returns 501 Not Implemented."""
-        self.client.force_login(self.user)
-        response = self.client.post(
-            reverse("learning:interview_finalizar"),
-            data="{}",
+
+# ---------------------------------------------------------------------------
+# WU-5b: TurnoEntrevistaView tests (Strict TDD — RED written before implementation)
+# ---------------------------------------------------------------------------
+
+class TurnoEntrevistaViewTests(TestCase):
+    """WU-5b: TurnoEntrevistaView.post() — validation, ownership, AI client call."""
+
+    def setUp(self):
+        self.url = reverse("learning:interview_turno")
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=20, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="entrevista", orden=1
+        )
+        self.user = User.objects.create_user(
+            username="turno@example.com",
+            email="turno@example.com",
+            password="x",
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.sesion = SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+        )
+
+    def _post(self, data):
+        return self.client.post(
+            self.url,
+            data=json.dumps(data),
             content_type="application/json",
         )
-        self.assertEqual(response.status_code, 501)
+
+    # ------------------------------------------------------------------
+    # 1. Missing sesion_id -> 400
+    # ------------------------------------------------------------------
+
+    def test_missing_sesion_id_returns_400(self):
+        """POST without sesion_id returns HTTP 400."""
+        self.client.force_login(self.user)
+        response = self._post({"transcripcion": "Hello", "historial": []})
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.content)
+        self.assertIn("error", data)
+
+    # ------------------------------------------------------------------
+    # 2. Non-existent sesion_id -> 404
+    # ------------------------------------------------------------------
+
+    def test_nonexistent_sesion_id_returns_404(self):
+        """POST with a sesion_id that does not exist returns HTTP 404."""
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": 99999, "transcripcion": "Hello", "historial": []})
+        self.assertEqual(response.status_code, 404)
+
+    # ------------------------------------------------------------------
+    # 3. Session belonging to another user -> 403
+    # ------------------------------------------------------------------
+
+    def test_session_of_another_user_returns_403(self):
+        """POST with sesion_id belonging to a different perfil returns HTTP 403."""
+        other_user = User.objects.create_user(
+            username="other@example.com", email="other@example.com", password="x"
+        )
+        other_perfil = other_user.perfil
+        other_perfil.nivel_mcer = self.nivel
+        other_perfil.save()
+        other_sesion = SesionEntrevista.objects.create(
+            perfil=other_perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+        )
+        self.client.force_login(self.user)
+        response = self._post({
+            "sesion_id": other_sesion.pk,
+            "transcripcion": "Hello",
+            "historial": [],
+        })
+        self.assertEqual(response.status_code, 403)
+
+    # ------------------------------------------------------------------
+    # 4. Session not EN_CURSO -> 409
+    # ------------------------------------------------------------------
+
+    def test_completed_session_returns_409(self):
+        """POST with a COMPLETADA session returns HTTP 409."""
+        self.sesion.estado = "COMPLETADA"
+        self.sesion.save()
+        self.client.force_login(self.user)
+        response = self._post({
+            "sesion_id": self.sesion.pk,
+            "transcripcion": "Hello",
+            "historial": [],
+        })
+        self.assertEqual(response.status_code, 409)
+
+    # ------------------------------------------------------------------
+    # 5. First turn (empty historial) -> 200, calls start_session
+    # ------------------------------------------------------------------
+
+    @patch("apps.learning.views.AIInterviewClient")
+    def test_first_turn_calls_start_session(self, mock_client_cls):
+        """Empty historial -> start_session() called; response has respuesta + historial."""
+        mock_client = mock_client_cls.return_value
+        mock_client.start_session.return_value = "What is your name?"
+
+        self.client.force_login(self.user)
+        response = self._post({
+            "sesion_id": self.sesion.pk,
+            "transcripcion": "",
+            "historial": [],
+        })
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertIn("respuesta", data)
+        self.assertIn("historial", data)
+        mock_client.start_session.assert_called_once()
+        # Historial should have exactly 1 assistant entry
+        self.assertEqual(len(data["historial"]), 1)
+        self.assertEqual(data["historial"][0]["role"], "assistant")
+
+    # ------------------------------------------------------------------
+    # 6. Subsequent turn (non-empty historial) -> 200, calls next_turn_for
+    # ------------------------------------------------------------------
+
+    @patch("apps.learning.views.AIInterviewClient")
+    def test_subsequent_turn_calls_next_turn_for(self, mock_client_cls):
+        """Non-empty historial -> next_turn_for() called; historial grows."""
+        mock_client = mock_client_cls.return_value
+        mock_client.next_turn_for.return_value = "Nice to meet you!"
+
+        prior_historial = [{"role": "assistant", "content": "What is your name?"}]
+        self.client.force_login(self.user)
+        response = self._post({
+            "sesion_id": self.sesion.pk,
+            "transcripcion": "My name is Ana.",
+            "historial": prior_historial,
+        })
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        mock_client.next_turn_for.assert_called_once()
+        # Historial should grow: prior 1 + user 1 + assistant 1 = 3
+        self.assertEqual(len(data["historial"]), 3)
+
+    # ------------------------------------------------------------------
+    # 7. Unauthenticated -> 302
+    # ------------------------------------------------------------------
+
+    def test_unauthenticated_post_redirects(self):
+        """POST without authentication returns HTTP 302."""
+        response = self._post({
+            "sesion_id": self.sesion.pk,
+            "transcripcion": "Hello",
+            "historial": [],
+        })
+        self.assertEqual(response.status_code, 302)
+
+
+# ---------------------------------------------------------------------------
+# WU-5b: FinalizarEntrevistaView tests (Strict TDD — RED written before implementation)
+# ---------------------------------------------------------------------------
+
+class FinalizarEntrevistaViewTests(TestCase):
+    """WU-5b: FinalizarEntrevistaView.post() — validation, evaluation, completion."""
+
+    def setUp(self):
+        self.url = reverse("learning:interview_finalizar")
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=30, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="entrevista", orden=1
+        )
+        self.user = User.objects.create_user(
+            username="finalizar@example.com",
+            email="finalizar@example.com",
+            password="x",
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.sesion = SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+            transcripcion_json=[{"role": "assistant", "content": "What is your name?"}],
+        )
+
+    def _post(self, data):
+        return self.client.post(
+            self.url,
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+    # ------------------------------------------------------------------
+    # 1. Missing sesion_id -> 400
+    # ------------------------------------------------------------------
+
+    def test_missing_sesion_id_returns_400(self):
+        """POST without sesion_id returns HTTP 400."""
+        self.client.force_login(self.user)
+        response = self._post({})
+        self.assertEqual(response.status_code, 400)
+
+    # ------------------------------------------------------------------
+    # 2. Non-existent sesion_id -> 404
+    # ------------------------------------------------------------------
+
+    def test_nonexistent_sesion_id_returns_404(self):
+        """POST with a sesion_id that does not exist returns HTTP 404."""
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": 99999})
+        self.assertEqual(response.status_code, 404)
+
+    # ------------------------------------------------------------------
+    # 3. Session of another user -> 403
+    # ------------------------------------------------------------------
+
+    def test_session_of_another_user_returns_403(self):
+        """POST with sesion_id belonging to a different perfil returns HTTP 403."""
+        other_user = User.objects.create_user(
+            username="other2@example.com", email="other2@example.com", password="x"
+        )
+        other_perfil = other_user.perfil
+        other_perfil.nivel_mcer = self.nivel
+        other_perfil.save()
+        other_sesion = SesionEntrevista.objects.create(
+            perfil=other_perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+            transcripcion_json=[{"role": "assistant", "content": "Hi"}],
+        )
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": other_sesion.pk})
+        self.assertEqual(response.status_code, 403)
+
+    # ------------------------------------------------------------------
+    # 4. Session already COMPLETADA -> 409
+    # ------------------------------------------------------------------
+
+    def test_completed_session_returns_409(self):
+        """POST with a COMPLETADA session returns HTTP 409."""
+        self.sesion.estado = "COMPLETADA"
+        self.sesion.save()
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": self.sesion.pk})
+        self.assertEqual(response.status_code, 409)
+
+    # ------------------------------------------------------------------
+    # 5. Empty transcripcion_json -> 400
+    # ------------------------------------------------------------------
+
+    def test_empty_historial_in_sesion_returns_400(self):
+        """Session with empty transcripcion_json returns HTTP 400."""
+        self.sesion.transcripcion_json = []
+        self.sesion.save()
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": self.sesion.pk})
+        self.assertEqual(response.status_code, 400)
+
+    # ------------------------------------------------------------------
+    # 6. Valid finalize -> 200, sesion updated, response has required keys
+    # ------------------------------------------------------------------
+
+    @patch("apps.learning.views.AIInterviewClient")
+    def test_valid_finalize_updates_sesion_and_returns_200(self, mock_client_cls):
+        """Valid POST -> sesion.estado=COMPLETADA, puntaje saved, response has required keys."""
+        mock_client = mock_client_cls.return_value
+        mock_client.evaluate_session.return_value = {
+            "puntaje_global": 85,
+            "scores": {"pronunciacion": 85, "vocabulario": 85, "fluidez": 85},
+        }
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": self.sesion.pk})
+        self.assertEqual(response.status_code, 200)
+
+        data = json.loads(response.content)
+        self.assertIn("aprobado", data)
+        self.assertIn("puntaje", data)
+        self.assertIn("scores", data)
+        self.assertIn("submodulo_completado", data)
+
+        self.sesion.refresh_from_db()
+        self.assertEqual(self.sesion.estado, "COMPLETADA")
+        self.assertIsNotNone(self.sesion.puntaje)
+
+    # ------------------------------------------------------------------
+    # 7. puntaje_global >= 80 -> aprobado=True
+    # ------------------------------------------------------------------
+
+    @patch("apps.learning.views.AIInterviewClient")
+    def test_passing_score_sets_aprobado_true(self, mock_client_cls):
+        """puntaje_global >= 80 -> aprobado=True in response."""
+        mock_client = mock_client_cls.return_value
+        mock_client.evaluate_session.return_value = {
+            "puntaje_global": 80,
+            "scores": {"pronunciacion": 80, "vocabulario": 80, "fluidez": 80},
+        }
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": self.sesion.pk})
+        data = json.loads(response.content)
+        self.assertTrue(data["aprobado"])
+
+    # ------------------------------------------------------------------
+    # 8. puntaje_global < 80 -> aprobado=False, sesion still COMPLETADA
+    # ------------------------------------------------------------------
+
+    @patch("apps.learning.views.AIInterviewClient")
+    def test_failing_score_sets_aprobado_false_sesion_completada(self, mock_client_cls):
+        """puntaje_global < 80 -> aprobado=False; sesion still saved as COMPLETADA."""
+        mock_client = mock_client_cls.return_value
+        mock_client.evaluate_session.return_value = {
+            "puntaje_global": 60,
+            "scores": {"pronunciacion": 60, "vocabulario": 60, "fluidez": 60},
+        }
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": self.sesion.pk})
+        data = json.loads(response.content)
+        self.assertFalse(data["aprobado"])
+
+        self.sesion.refresh_from_db()
+        self.assertEqual(self.sesion.estado, "COMPLETADA")
+
+    # ------------------------------------------------------------------
+    # 9. Unauthenticated -> 302
+    # ------------------------------------------------------------------
+
+    def test_unauthenticated_post_redirects(self):
+        """POST without authentication returns HTTP 302."""
+        response = self._post({"sesion_id": self.sesion.pk})
+        self.assertEqual(response.status_code, 302)

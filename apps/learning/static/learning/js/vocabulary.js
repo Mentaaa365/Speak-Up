@@ -2,230 +2,351 @@
  * vocabulary.js — Motor STT/TTS para el Submódulo de Vocabulario y Lectura
  * HU-03 / HU-04 · RF-04
  *
+ * Consume los globales inyectados por vocabulary.html:
+ *   const EXERCISES  = [{ id, texto_objetivo, nivel }, ...];
+ *   const GUARDAR_URL = "/progress/guardar-ejercicio/";
+ *
  * Flujo por ejercicio:
- *   1. TTS lee la palabra/frase objetivo (máx. 2 veces, velocidad 1.0×)
- *   2. STT graba la pronunciación del estudiante
- *   3. Se compara palabra por palabra y se colorea el feedback (verde/rojo)
- *   4. Si puntaje ≥ 80 → ejercicio aprobado, se guarda progreso en BD
- *   5. Si puntaje < 80 → permite reintentar (intentos ilimitados)
+ *   1. showExercise(index) muestra la card correspondiente
+ *   2. TTS lee el texto objetivo (máx 2 veces, velocidad 1.0×)
+ *   3. STT graba la pronunciación del estudiante
+ *   4. score() compara palabra por palabra → puntaje 0–100
+ *   5. submitAttempt() POST a GUARDAR_URL con ejercicio_id + puntaje + transcripcion
+ *   6. showResult() colorea feedback, actualiza barra de progreso
+ *   7. Si aprobado (puntaje ≥ 80) avanza al siguiente ejercicio tras 1.5 s
  */
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // ─── Estado del ejercicio ────────────────────────────────────────────────
-    let targetText     = '';      // frase/palabra objetivo
-    let lastTranscript = '';      // última transcripción del STT
-    let ttsPlayCount   = 0;       // reproducciones TTS (máx 2)
-    let isRecording    = false;
-
-    // ─── Elementos del DOM ───────────────────────────────────────────────────
-    const targetWordEl      = document.getElementById('target-word');
-    const ttsBtn            = document.getElementById('tts-btn');
-    const recordBox         = document.getElementById('record-box');
-    const micIcon           = document.getElementById('mic-icon');
-    const recordStatus      = document.getElementById('record-status');
-    const feedbackContainer = document.getElementById('feedback-container');
-    const retryBtn          = document.getElementById('retry-btn');
-    const scoreWarning      = document.querySelector('[id^="score"]') || null;
-
-    // ─── Inicializar con el ejercicio actual ──────────────────────────────────
-    // targetText viene del template Django como variable global
-    // Si no hay variable global, usamos el texto del DOM como fallback
-    if (typeof EXERCISE_TARGET !== 'undefined') {
-        targetText = EXERCISE_TARGET;
-    } else {
-        targetText = targetWordEl
-            ? targetWordEl.textContent.replace(/['"]/g, '').trim()
-            : '';
+    // ─── Validación de globales ───────────────────────────────────────────────
+    if (typeof EXERCISES === 'undefined' || !Array.isArray(EXERCISES) || EXERCISES.length === 0) {
+        console.warn('vocabulary.js: EXERCISES global not found or empty. Aborting.');
+        return;
+    }
+    if (typeof GUARDAR_URL === 'undefined') {
+        console.warn('vocabulary.js: GUARDAR_URL global not found. Aborting.');
+        return;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  MOTOR TTS — Síntesis de voz (Web Speech API)
-    // ─────────────────────────────────────────────────────────────────────────
-    const speakTarget = () => {
-        if (!targetText) return;
+    // ─── Estado de sesión ─────────────────────────────────────────────────────
+    let currentIndex    = 0;   // índice en EXERCISES
+    let totalCompleted  = 0;   // ejercicios aprobados (puntaje >= 80) esta sesión
+    let isRecording     = false;
+    let lastTranscript  = '';
+    let ttsPlayCount    = 0;
 
-        // Cancelar cualquier síntesis en curso
+    // ─────────────────────────────────────────────────────────────────────────
+    //  NAVEGACIÓN — Muestra / oculta cards
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Oculta todas las cards, muestra la del ejercicio en `index`,
+     * y resetea los elementos de interacción de esa card.
+     */
+    const showExercise = (index) => {
+        // Ocultar todas las cards
+        document.querySelectorAll('div[id^="ejercicio-"]').forEach(el => {
+            el.style.display = 'none';
+        });
+
+        const ejercicio = EXERCISES[index];
+        if (!ejercicio) return;
+
+        const card = document.getElementById(`ejercicio-${ejercicio.id}`);
+        if (!card) return;
+        card.style.display = 'block';
+
+        // Reset feedback al placeholder
+        const feedbackContainer = card.querySelector('#feedback-container');
+        if (feedbackContainer) {
+            feedbackContainer.innerHTML =
+                '<span style="font-size:13px; color:var(--g400); font-style:italic;">Graba tu pronunciación para ver la retroalimentación.</span>';
+        }
+
+        // Ocultar score-box
+        const scoreBox = card.querySelector('#score-box');
+        if (scoreBox) scoreBox.style.display = 'none';
+
+        // Resetear record-status
+        const recordStatus = card.querySelector('#record-status');
+        if (recordStatus) {
+            recordStatus.textContent  = 'Presioná para grabar';
+            recordStatus.style.color  = 'var(--secondary)';
+        }
+
+        // Resetear record-box border
+        const recordBox = card.querySelector('#record-box');
+        if (recordBox) {
+            recordBox.style.borderColor = 'var(--secondary)';
+            recordBox.style.cursor      = 'pointer';
+        }
+
+        // Resetear mic-icon
+        const micIcon = card.querySelector('#mic-icon');
+        if (micIcon) {
+            micIcon.style.background = 'var(--secondary)';
+            micIcon.style.boxShadow  = '0 4px 12px rgba(16,185,129,0.3)';
+        }
+
+        // Resetear TTS button
+        const ttsBtn = card.querySelector('#tts-btn');
+        if (ttsBtn) {
+            ttsBtn.disabled      = false;
+            ttsBtn.style.opacity = '1';
+            ttsBtn.innerHTML     = '🔊 Escuchar modelo TTS (1.0×)';
+        }
+
+        // Resetear estado local
+        lastTranscript = '';
+        ttsPlayCount   = 0;
+        isRecording    = false;
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  PROGRESO — Barra superior
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const updateProgressBar = () => {
+        const pct      = EXERCISES.length > 0
+            ? Math.round((totalCompleted / EXERCISES.length) * 100)
+            : 0;
+        const bar      = document.getElementById('progress-bar');
+        const pctLabel = document.getElementById('progress-pct');
+        if (bar)      bar.style.width  = `${pct}%`;
+        if (pctLabel) pctLabel.textContent = `${pct}%`;
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  TTS — Síntesis de voz (Web Speech API)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const speakTarget = (texto, ttsBtn) => {
+        if (!texto) return;
         window.speechSynthesis.cancel();
 
-        const utterance    = new SpeechSynthesisUtterance(targetText);
+        const utterance    = new SpeechSynthesisUtterance(texto);
         utterance.lang     = 'en-US';
-        utterance.rate     = 1.0;   // velocidad natural, igual que el badge "TTS 1.0×"
+        utterance.rate     = 1.0;
         utterance.pitch    = 1.0;
 
-        // Elegir voz nativa en inglés si está disponible
-        const voices = window.speechSynthesis.getVoices();
+        const voices  = window.speechSynthesis.getVoices();
         const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService);
         if (enVoice) utterance.voice = enVoice;
 
         window.speechSynthesis.speak(utterance);
 
         ttsPlayCount++;
-        if (ttsPlayCount >= 2) {
-            ttsBtn.disabled          = true;
-            ttsBtn.style.opacity     = '0.5';
-            ttsBtn.innerHTML         = '🔊 Límite de reproducciones alcanzado';
+        if (ttsPlayCount >= 2 && ttsBtn) {
+            ttsBtn.disabled      = true;
+            ttsBtn.style.opacity = '0.5';
+            ttsBtn.innerHTML     = '🔊 Límite de reproducciones alcanzado';
         }
     };
 
-    if (ttsBtn) {
-        ttsBtn.addEventListener('click', speakTarget);
-
-        // Reproducción automática al cargar (primera vez)
-        // Necesita un pequeño delay porque algunas voces tardan en cargar
-        setTimeout(() => {
-            if (window.speechSynthesis.getVoices().length === 0) {
-                window.speechSynthesis.onvoiceschanged = () => speakTarget();
-            } else {
-                speakTarget();
-            }
-        }, 600);
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
-    //  MOTOR STT — Reconocimiento de voz (Web Speech API)
+    //  STT — Reconocimiento de voz (Web Speech API)
     // ─────────────────────────────────────────────────────────────────────────
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    const startRecording = () => {
+    const startRecording = (card) => {
         if (!SpeechRecognition) {
-            _showError('Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.');
+            _showError(card, 'Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.');
             return;
         }
         if (isRecording) return;
 
         isRecording = true;
-        _setRecordingUI(true);
+        _setRecordingUI(card, true);
 
-        const recognition          = new SpeechRecognition();
-        recognition.lang           = 'en-US';
-        recognition.interimResults = false;
+        const recognition           = new SpeechRecognition();
+        recognition.lang            = 'en-US';
+        recognition.interimResults  = false;
         recognition.maxAlternatives = 1;
 
-        recognition.start();
+        const safetyTimer = setTimeout(() => recognition.stop(), 8000);
 
-        // Timeout de seguridad: si no hay resultado en 8s, cancela
-        const safetyTimer = setTimeout(() => {
-            recognition.stop();
-        }, 8000);
+        recognition.onstart = () => {
+            _setRecordingUI(card, true);
+        };
 
         recognition.onresult = (event) => {
             clearTimeout(safetyTimer);
-            lastTranscript = event.results[0][0].transcript.trim();
-            isRecording    = false;
-            _setRecordingUI(false);
-            _evaluarPronunciacion(lastTranscript);
+            const transcript = event.results[0][0].transcript.trim();
+            lastTranscript   = transcript;
+            isRecording      = false;
+            _setRecordingUI(card, false);
+            submitAttempt(transcript);
         };
 
         recognition.onerror = (e) => {
             clearTimeout(safetyTimer);
             isRecording = false;
-            _setRecordingUI(false);
-            _showError(`Error de micrófono: ${e.error}. Verifica permisos e intenta de nuevo.`);
+            _setRecordingUI(card, false);
+            _showError(card, `Error de micrófono: ${e.error}. Verificá los permisos e intentá de nuevo.`);
         };
 
         recognition.onend = () => {
             clearTimeout(safetyTimer);
             if (isRecording) {
                 isRecording = false;
-                _setRecordingUI(false);
+                _setRecordingUI(card, false);
             }
         };
-    };
 
-    if (recordBox) {
-        recordBox.addEventListener('click', startRecording);
-    }
-
-    if (retryBtn) {
-        retryBtn.addEventListener('click', () => {
-            lastTranscript = '';
-            ttsPlayCount   = 0;
-            if (ttsBtn) {
-                ttsBtn.disabled      = false;
-                ttsBtn.style.opacity = '1';
-                ttsBtn.innerHTML     = '🔊 Escuchar modelo TTS (1.0×)';
-            }
-            _clearFeedback();
-            _setRecordingUI(false);
-        });
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  EVALUACIÓN — Comparación palabra por palabra
-    // ─────────────────────────────────────────────────────────────────────────
-    const _evaluarPronunciacion = (transcript) => {
-        const targetWords = _normalizar(targetText).split(' ');
-        const spokenWords = _normalizar(transcript).split(' ');
-
-        let correctas = 0;
-        const resultados = targetWords.map((palabra, i) => {
-            const dicha = spokenWords[i] || '';
-            const ok    = _similitud(dicha, palabra) >= 0.75;
-            if (ok) correctas++;
-            return { palabra, ok };
-        });
-
-        const puntaje = Math.round((correctas / targetWords.length) * 100);
-        _mostrarFeedback(resultados, puntaje, transcript);
-
-        if (puntaje >= 80) {
-            _guardarProgreso(puntaje);
-        }
+        recognition.start();
     };
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  UI — Helpers
+    //  SCORING — Comparación simple palabra por palabra
     // ─────────────────────────────────────────────────────────────────────────
-    const _mostrarFeedback = (resultados, puntaje, transcript) => {
-        if (!feedbackContainer) return;
 
-        feedbackContainer.innerHTML = resultados.map(({ palabra, ok }) =>
-            `<span style="padding:6px 12px; border-radius:8px; font-size:14px; font-weight:700;
-                background:${ok ? 'var(--secondary-light)' : 'var(--danger-light)'};
-                color:${ok ? 'var(--secondary)' : 'var(--danger)'};">
-                ${ok ? '✓' : '✗'} ${palabra}
-            </span>`
-        ).join('');
+    /**
+     * Compara `transcript` contra `target`.
+     * Retorna un entero 0–100 (porcentaje de palabras en posición correcta).
+     */
+    const score = (transcript, target) => {
+        const tWords = transcript.toLowerCase().split(/\s+/);
+        const aWords = target.toLowerCase().split(/\s+/);
+        let correct  = 0;
+        aWords.forEach((w, i) => {
+            if (tWords[i] === w) correct++;
+        });
+        return Math.round((correct / aWords.length) * 100);
+    };
 
-        // Actualizar el badge de puntaje si existe en el DOM
-        const scoreEl = document.querySelector('[id="score-badge"]');
-        if (scoreEl) {
-            const color = puntaje >= 80 ? 'var(--secondary)' : 'var(--warning)';
-            scoreEl.style.color = color;
-            scoreEl.textContent = `Puntaje: ${puntaje}% · ${puntaje >= 80 ? '✅ ¡Superado!' : 'Necesitas ≥80% · Reintento ilimitado'}`;
+    // ─────────────────────────────────────────────────────────────────────────
+    //  PERSISTENCIA — POST a GUARDAR_URL
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const submitAttempt = (transcript) => {
+        const ejercicio = EXERCISES[currentIndex];
+        if (!ejercicio) return;
+
+        const puntaje   = score(transcript, ejercicio.texto_objetivo);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+        fetch(GUARDAR_URL, {
+            method:  'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken':  csrfToken,
+            },
+            body: JSON.stringify({
+                ejercicio_id:  ejercicio.id,
+                puntaje:       puntaje,
+                transcripcion: transcript,
+            }),
+        })
+        .then(r => r.json())
+        .then(data => showResult(data, transcript))
+        .catch(err => {
+            const card = document.getElementById(`ejercicio-${ejercicio.id}`);
+            if (card) _showError(card, `Error al guardar el progreso: ${err.message}`);
+        });
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  RESULTADO — Renderiza feedback y gestiona avance
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const showResult = (data, transcript) => {
+        const ejercicio = EXERCISES[currentIndex];
+        if (!ejercicio) return;
+
+        const card = document.getElementById(`ejercicio-${ejercicio.id}`);
+        if (!card) return;
+
+        // ── Feedback palabra por palabra ──────────────────────────────────────
+        const targetWords  = ejercicio.texto_objetivo.toLowerCase().split(/\s+/);
+        const spokenWords  = transcript.toLowerCase().split(/\s+/);
+
+        const feedbackContainer = card.querySelector('#feedback-container');
+        if (feedbackContainer) {
+            feedbackContainer.innerHTML = targetWords.map((word, i) => {
+                const ok = spokenWords[i] === word;
+                return `<span style="padding:6px 12px; border-radius:8px; font-size:14px; font-weight:700;
+                    background:${ok ? 'var(--secondary-light)' : 'var(--danger-light)'};
+                    color:${ok ? 'var(--secondary)' : 'var(--danger)'};">
+                    ${ok ? '✓' : '✗'} ${word}
+                </span>`;
+            }).join('');
         }
 
-        // También actualizar el bloque de advertencia existente en el HTML
-        const warningEl = document.querySelector('.score-warning');
-        if (warningEl) {
-            if (puntaje >= 80) {
-                warningEl.style.background    = 'var(--secondary-light)';
-                warningEl.style.borderColor   = 'rgba(16,185,129,0.4)';
-                warningEl.querySelector('p').style.color = 'var(--secondary)';
-                warningEl.querySelector('p').textContent =
-                    `✅ Puntaje: ${puntaje}% · ¡Ejercicio superado! Continúa al siguiente.`;
+        // ── Score box ─────────────────────────────────────────────────────────
+        const scoreBox = card.querySelector('#score-box');
+        const scoreMsg = card.querySelector('#score-msg');
+        if (scoreBox && scoreMsg) {
+            scoreBox.style.display    = 'block';
+            if (data.aprobado) {
+                scoreBox.style.background = 'var(--secondary-light)';
+                scoreBox.style.border     = '1px solid rgba(16,185,129,0.4)';
+                scoreMsg.style.color      = 'var(--secondary)';
+                scoreMsg.textContent      = `✅ Puntaje: ${data.puntaje}% · ¡Ejercicio superado! Pasando al siguiente...`;
             } else {
-                warningEl.querySelector('p').textContent =
-                    `⚠️ Puntaje: ${puntaje}% · Necesitas ≥80% para completar · Reintento ilimitado`;
+                scoreBox.style.background = '#FFF8E1';
+                scoreBox.style.border     = '1px solid rgba(245,158,11,0.4)';
+                scoreMsg.style.color      = 'var(--warning)';
+                scoreMsg.textContent      = `⚠️ Puntaje: ${data.puntaje}% · Necesitás ≥80% · Reintento ilimitado`;
             }
         }
 
-        // Mostrar transcripción recibida debajo del feedback
-        const transcriptEl = document.getElementById('transcript-result');
-        if (transcriptEl) {
-            transcriptEl.textContent = `Escuchamos: "${transcript}"`;
-            transcriptEl.style.display = 'block';
+        // ── Avance automático si aprobado ─────────────────────────────────────
+        if (data.aprobado) {
+            totalCompleted++;
+            updateProgressBar();
+
+            setTimeout(() => {
+                if (currentIndex < EXERCISES.length - 1) {
+                    currentIndex++;
+                    showExercise(currentIndex);
+                } else {
+                    // Último ejercicio completado
+                    _showCompletionMessage(data.submodulo_completado);
+                }
+            }, 1500);
         }
     };
 
-    const _clearFeedback = () => {
-        if (feedbackContainer) feedbackContainer.innerHTML = '';
-        const transcriptEl = document.getElementById('transcript-result');
-        if (transcriptEl) transcriptEl.style.display = 'none';
+    // ─────────────────────────────────────────────────────────────────────────
+    //  MENSAJE DE COMPLETADO
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _showCompletionMessage = (submoduloCompletado) => {
+        // Ocultar todas las cards
+        document.querySelectorAll('div[id^="ejercicio-"]').forEach(el => {
+            el.style.display = 'none';
+        });
+
+        // Actualizar barra al 100 %
+        totalCompleted = EXERCISES.length;
+        updateProgressBar();
+
+        // Mostrar mensaje en el contenedor de ejercicios
+        const container = document.querySelector('[style*="overflow-y: auto"]');
+        const wrapper   = document.createElement('div');
+        wrapper.style.cssText = 'background:#FFFFFF; border-radius:12px; border:1px solid var(--g200); padding:40px; text-align:center; margin-top:16px;';
+        const dashboardBtn = `<a href="${DASHBOARD_URL}" style="display:inline-block; margin-top:16px; padding:10px 24px; border-radius:9px; background:var(--primary); color:#FFFFFF; font-size:14px; font-weight:700; text-decoration:none;">Volver al Dashboard</a>`;
+        wrapper.innerHTML = submoduloCompletado
+            ? `<p style="font-size:22px; font-weight:800; color:var(--secondary); margin:0 0 8px 0;">🎉 ¡Submódulo completado!</p>
+               <p style="font-size:14px; color:var(--g500); margin:0 0 0 0;">Aprobaste todos los ejercicios de vocabulario.</p>
+               ${dashboardBtn}`
+            : `<p style="font-size:22px; font-weight:800; color:var(--primary); margin:0 0 8px 0;">✅ ¡Ejercicios terminados!</p>
+               <p style="font-size:14px; color:var(--g500); margin:0 0 0 0;">Completaste todos los ejercicios disponibles en esta sesión.</p>
+               ${dashboardBtn}`;
+
+        if (container) container.appendChild(wrapper);
     };
 
-    const _setRecordingUI = (grabando) => {
+    // ─────────────────────────────────────────────────────────────────────────
+    //  UI HELPERS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const _setRecordingUI = (card, grabando) => {
+        if (!card) return;
+        const recordBox    = card.querySelector('#record-box');
+        const micIcon      = card.querySelector('#mic-icon');
+        const recordStatus = card.querySelector('#record-status');
         if (!recordBox || !micIcon || !recordStatus) return;
 
         if (grabando) {
@@ -239,74 +360,60 @@ document.addEventListener('DOMContentLoaded', () => {
             micIcon.style.background    = 'var(--secondary)';
             micIcon.style.boxShadow     = '0 4px 12px rgba(16,185,129,0.3)';
             recordStatus.textContent    = lastTranscript
-                ? '🔄 Toca para intentar de nuevo'
-                : '🎙️ Toca para empezar a hablar';
+                ? '🔄 Tocá para intentar de nuevo'
+                : '🎙️ Tocá para empezar a hablar';
             recordStatus.style.color    = 'var(--secondary)';
             recordBox.style.borderColor = 'var(--secondary)';
             recordBox.style.cursor      = 'pointer';
         }
     };
 
-    const _showError = (msg) => {
-        if (!feedbackContainer) return;
-        feedbackContainer.innerHTML =
-            `<p style="color:var(--danger); font-size:13px; font-weight:600;">⚠️ ${msg}</p>`;
+    const _showError = (card, msg) => {
+        if (!card) return;
+        const feedbackContainer = card.querySelector('#feedback-container');
+        if (feedbackContainer) {
+            feedbackContainer.innerHTML =
+                `<p style="color:var(--danger); font-size:13px; font-weight:600;">⚠️ ${msg}</p>`;
+        }
     };
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  PERSISTENCIA — Guarda progreso en el servidor
+    //  DELEGACIÓN DE EVENTOS — Usa event delegation para manejar todas las cards
     // ─────────────────────────────────────────────────────────────────────────
-    const _guardarProgreso = (puntaje) => {
-        const exerciseId = document.getElementById('exercise-id')?.value;
-        if (!exerciseId) return;  // sin exercise_id no guardamos
 
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+    document.addEventListener('click', (event) => {
+        // Encontrar la card ancestro del elemento clickeado
+        const card = event.target.closest('div[id^="ejercicio-"]');
+        if (!card) return;
 
-        fetch('/progress/guardar-ejercicio/', {
-            method:  'POST',
-            headers: {
-                'Content-Type':     'application/json',
-                'X-CSRFToken':      csrfToken,
-            },
-            body: JSON.stringify({
-                exercise_id: exerciseId,
-                puntaje:     puntaje,
-            }),
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                // Mostrar botón de continuar si el ejercicio fue aprobado
-                const nextBtn = document.getElementById('next-exercise-btn');
-                if (nextBtn) nextBtn.style.display = 'inline-flex';
+        // TTS button
+        if (event.target.closest('#tts-btn')) {
+            const ejercicio = EXERCISES[currentIndex];
+            if (ejercicio) {
+                const ttsBtn = card.querySelector('#tts-btn');
+                speakTarget(ejercicio.texto_objetivo, ttsBtn);
             }
-        })
-        .catch(err => console.error('Error guardando progreso:', err));
-    };
+            return;
+        }
+
+        // Record box (pero no si ya está grabando)
+        if (event.target.closest('#record-box') && !isRecording) {
+            startRecording(card);
+            return;
+        }
+
+        // Retry button
+        if (event.target.closest('#retry-btn')) {
+            showExercise(currentIndex);
+            return;
+        }
+    });
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  UTILIDADES
+    //  INICIALIZACIÓN
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Quita puntuación, minúsculas y espacios extra */
-    const _normalizar = (texto) =>
-        texto.toLowerCase()
-             .replace(/[.,!?;:'"()\-]/g, '')
-             .replace(/\s+/g, ' ')
-             .trim();
-
-    /** Similitud entre dos strings (0.0 – 1.0) usando Longest Common Subsequence */
-    const _similitud = (a, b) => {
-        if (a === b) return 1;
-        if (!a || !b) return 0;
-        const m = a.length, n = b.length;
-        const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-        for (let i = 1; i <= m; i++)
-            for (let j = 1; j <= n; j++)
-                dp[i][j] = a[i-1] === b[j-1]
-                    ? dp[i-1][j-1] + 1
-                    : Math.max(dp[i-1][j], dp[i][j-1]);
-        return (2 * dp[m][n]) / (m + n);
-    };
+    showExercise(currentIndex);
+    updateProgressBar();
 
 });

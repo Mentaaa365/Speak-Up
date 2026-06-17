@@ -459,3 +459,188 @@ class PromptBuilderTests(TestCase):
         cats = ["pronunciacion", "vocabulario", "fluidez", "coherencia", "riqueza_lexica"]
         prompt = client._eval_prompt("B1", cats)
         self.assertIn("sugerencias_mejora", prompt)
+
+
+# ---------------------------------------------------------------------------
+# WU-5a: AiInterviewLearningView GET tests (Strict TDD — RED before GREEN)
+# ---------------------------------------------------------------------------
+
+class AiInterviewLearningViewTests(TestCase):
+    """WU-5a: AiInterviewLearningView.get() — guards, session lifecycle, context."""
+
+    def setUp(self):
+        self.url = reverse("learning:ai_interview")
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=10, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="entrevista", orden=1
+        )
+        self.user = User.objects.create_user(
+            username="interview@example.com",
+            email="interview@example.com",
+            password="x",
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+
+    # ------------------------------------------------------------------
+    # Guard 1: Perfil.DoesNotExist -> redirect to authentication:login
+    # ------------------------------------------------------------------
+
+    def test_guard1_no_perfil_redirects_to_login(self):
+        """Perfil.DoesNotExist -> 302 to authentication:login."""
+        from apps.learning.views import AiInterviewLearningView
+
+        factory = RequestFactory()
+        request = factory.get(self.url)
+        request.user = self.user
+
+        with patch(
+            "apps.learning.views.Perfil.objects.select_related",
+            return_value=type(
+                "qs",
+                (),
+                {"get": staticmethod(lambda **kw: (_ for _ in ()).throw(Perfil.DoesNotExist()))},
+            )(),
+        ):
+            response = AiInterviewLearningView.as_view()(request)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("login", response["Location"])
+
+    # ------------------------------------------------------------------
+    # Guard 2: no 'entrevista' Submodulo for this nivel -> redirect to dashboard
+    # ------------------------------------------------------------------
+
+    def test_guard2_no_entrevista_submodulo_redirects_to_dashboard(self):
+        """Perfil exists but nivel has no 'entrevista' submodulo -> 302 to progress:dashboard."""
+        nivel_sin_entrevista = NivelMCER.objects.create(
+            codigo="B2", orden=11, parametros_json={}
+        )
+        self.perfil.nivel_mcer = nivel_sin_entrevista
+        self.perfil.save()
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response, reverse("progress:dashboard"), fetch_redirect_response=False
+        )
+
+    # ------------------------------------------------------------------
+    # Happy path: 200 + correct context keys
+    # ------------------------------------------------------------------
+
+    def test_happy_path_returns_200_with_required_context_keys(self):
+        """GET returns 200 and context contains all required keys."""
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        for key in (
+            "submodulo", "nivel", "sesion_id",
+            "nivel_codigo", "tts_rate", "tiempo_respuesta",
+            "turno_url", "finalizar_url",
+        ):
+            self.assertIn(key, response.context, msg=f"Missing context key: {key}")
+
+    # ------------------------------------------------------------------
+    # Context values for A1 level
+    # ------------------------------------------------------------------
+
+    def test_context_values_for_a1_level(self):
+        """A1 nivel: tts_rate=0.85, tiempo_respuesta=45."""
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["nivel_codigo"], "A1")
+        self.assertAlmostEqual(float(response.context["tts_rate"]), 0.85)
+        self.assertEqual(response.context["tiempo_respuesta"], 45)
+
+    # ------------------------------------------------------------------
+    # Session abandonment: prior EN_CURSO -> ABANDONADA + new EN_CURSO
+    # ------------------------------------------------------------------
+
+    def test_prior_en_curso_session_gets_abandoned(self):
+        """If an EN_CURSO session exists, it must be marked ABANDONADA on GET."""
+        prior = SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+        )
+        self.client.force_login(self.user)
+        self.client.get(self.url)
+
+        prior.refresh_from_db()
+        self.assertEqual(prior.estado, "ABANDONADA")
+
+    def test_two_rows_exist_after_abandonment(self):
+        """After a second GET with prior EN_CURSO, DB has 2 rows (1 ABANDONADA + 1 EN_CURSO)."""
+        SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+        )
+        self.client.force_login(self.user)
+        self.client.get(self.url)
+
+        total = SesionEntrevista.objects.filter(
+            perfil=self.perfil, submodulo=self.submodulo
+        ).count()
+        self.assertEqual(total, 2)
+
+        en_curso = SesionEntrevista.objects.filter(
+            perfil=self.perfil, submodulo=self.submodulo, estado="EN_CURSO"
+        ).count()
+        self.assertEqual(en_curso, 1)
+
+        abandonada = SesionEntrevista.objects.filter(
+            perfil=self.perfil, submodulo=self.submodulo, estado="ABANDONADA"
+        ).count()
+        self.assertEqual(abandonada, 1)
+
+    # ------------------------------------------------------------------
+    # New session when none exists
+    # ------------------------------------------------------------------
+
+    def test_new_session_created_when_none_exists(self):
+        """When no prior session exists, GET creates one EN_CURSO row."""
+        self.client.force_login(self.user)
+        self.client.get(self.url)
+
+        sesiones = SesionEntrevista.objects.filter(
+            perfil=self.perfil, submodulo=self.submodulo, estado="EN_CURSO"
+        )
+        self.assertEqual(sesiones.count(), 1)
+
+    # ------------------------------------------------------------------
+    # URL stubs: TurnoEntrevistaView and FinalizarEntrevistaView
+    # ------------------------------------------------------------------
+
+    def test_turno_url_resolves(self):
+        """learning:interview_turno resolves correctly."""
+        url = reverse("learning:interview_turno")
+        self.assertTrue(url.endswith("/turno/"))
+
+    def test_finalizar_url_resolves(self):
+        """learning:interview_finalizar resolves correctly."""
+        url = reverse("learning:interview_finalizar")
+        self.assertTrue(url.endswith("/finalizar/"))
+
+    def test_turno_stub_returns_501(self):
+        """TurnoEntrevistaView stub returns 501 Not Implemented."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("learning:interview_turno"),
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 501)
+
+    def test_finalizar_stub_returns_501(self):
+        """FinalizarEntrevistaView stub returns 501 Not Implemented."""
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("learning:interview_finalizar"),
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 501)

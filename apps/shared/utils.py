@@ -7,15 +7,26 @@ def _similitud(a: str, b: str) -> float:
 
 
 def _submodulo_completado(perfil, submodulo) -> bool:
-    """Return True iff every Ejercicio in submodulo has an active passing attempt.
+    """Return True iff the submodule is considered completed for the given perfil.
 
-    An attempt is considered passing when activo=True and puntaje >= 80.
-    Returns False when the submodule contains no exercises (vacuous-True guard).
+    Dispatches on submodulo.tipo:
+    - 'entrevista': requires a SesionEntrevista with estado='COMPLETADA' and puntaje >= 80.
+    - All other tipos: requires every Ejercicio to have an active passing IntentoEjercicio
+      (activo=True, puntaje >= 80). Returns False when the submodule has no exercises.
 
-    The import of IntentoEjercicio is inline to avoid circular imports:
-    apps.progress imports from apps.shared, so a module-level import here
-    would create a cycle.
+    All model imports are inline to avoid circular imports: apps.progress and apps.learning
+    both import from apps.shared, so module-level imports here would create cycles.
     """
+    if submodulo.tipo == "entrevista":
+        from apps.learning.models import SesionEntrevista  # noqa: PLC0415
+
+        return SesionEntrevista.objects.filter(
+            perfil=perfil,
+            submodulo=submodulo,
+            estado="COMPLETADA",
+            puntaje__gte=80,
+        ).exists()
+
     from apps.progress.models import IntentoEjercicio  # noqa: PLC0415
 
     total = submodulo.ejercicios.count()

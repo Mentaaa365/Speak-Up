@@ -2,8 +2,169 @@
 {% load static %}
 
 {% block content %}
-<div id="ai-interview-stub">
-    <!-- WU-6 will replace this stub with the full template -->
-    <p>AI Interview — Level {{ nivel_codigo }}</p>
+<div style="display: flex; flex-direction: column; height: 100%; border-radius: 16px; overflow: hidden; border: 1px solid var(--g200); background: #FFFFFF;">
+
+    {# ── Header ── #}
+    <div style="background: var(--primary); padding: 20px;">
+        <header style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
+            <div style="flex: 1; min-width: 240px;">
+                <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">
+                    Nivel {{ nivel.codigo }} · Submódulo Entrevista IA · Conversación oral adaptativa
+                </p>
+                <h3 style="color: #FFFFFF; font-size: 22px; font-weight: 800; margin: 0;">
+                    Entrevista IA — Nivel {{ nivel.codigo }}
+                </h3>
+            </div>
+            <aside style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <span style="background: rgba(255,255,255,0.2); color: #FFFFFF; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                    {{ tiempo_respuesta }}s por respuesta
+                </span>
+                <span style="background: rgba(255,255,255,0.2); color: #FFFFFF; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                    {{ nivel.codigo }}
+                </span>
+            </aside>
+        </header>
+
+        <nav style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Vocabulario</span>
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Música</span>
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #FFFFFF; color: var(--primary);">Entrevista IA</span>
+        </nav>
+    </div>
+
+    {# ── Main content area ── #}
+    <div style="flex: 1; overflow-y: auto; padding: 20px; background: var(--g50);">
+
+        {# ── Chat container ── #}
+        <div id="chat-container"
+             style="background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 20px; margin-bottom: 20px; min-height: 220px; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+            <p id="chat-placeholder" style="font-size: 14px; color: var(--g400); font-style: italic; margin: 0; text-align: center; align-self: center;">
+                La entrevista comenzará cuando presiones "Iniciar"
+            </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+
+            {# ── Recording panel ── #}
+            <div>
+                {# Countdown #}
+                <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 20px; margin-bottom: 16px; text-align: center;">
+                    <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 8px 0;">Tiempo restante</p>
+                    <div id="countdown"
+                         style="font-size: 52px; font-weight: 900; color: var(--primary); line-height: 1; margin-bottom: 4px;">
+                        {{ tiempo_respuesta }}s
+                    </div>
+                    <p style="font-size: 11px; color: var(--g400); margin: 0;">El turno se envía automáticamente al llegar a 0</p>
+                </div>
+
+                {# Live transcription display #}
+                <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 16px; margin-bottom: 16px;">
+                    <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 8px 0;">Transcripción en tiempo real</p>
+                    <div id="transcripcion-display"
+                         style="min-height: 56px; font-size: 14px; color: var(--g700); font-style: italic; line-height: 1.5;">
+                        <span style="color: var(--g400);">Tu voz aparecerá aquí mientras hablás...</span>
+                    </div>
+                </div>
+
+                {# Record button #}
+                <button id="record-btn"
+                        style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 20px; border-radius: 9px; border: none; background: var(--secondary); color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-bottom: 10px;">
+                    <span id="record-btn-icon">🎙️</span>
+                    <span id="record-btn-label">Iniciar entrevista</span>
+                </button>
+
+                {# Submit current turn manually #}
+                <button id="submit-turn-btn"
+                        style="display: none; width: 100%; padding: 11px 20px; border-radius: 9px; border: 1.5px solid var(--primary); background: transparent; color: var(--primary); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-bottom: 10px;">
+                    Finalizar respuesta
+                </button>
+
+                {# Finalize interview #}
+                <button id="finalizar-btn"
+                        style="display: none; width: 100%; padding: 11px 20px; border-radius: 9px; border: none; background: var(--warning); color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                    Finalizar entrevista
+                </button>
+            </div>
+
+            {# ── Result panel ── #}
+            <div>
+                {# Hint box (visible until result) #}
+                <aside id="hint-box"
+                       style="background: var(--primary-light); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; gap: 12px; align-items: flex-start;">
+                    <span style="font-size: 20px;">💡</span>
+                    <div style="font-size: 12px; color: var(--primary); font-weight: 600; line-height: 1.5;">
+                        <p style="margin: 0 0 6px 0;">Hablá con claridad y en inglés. El agente evaluará:</p>
+                        <ul style="margin: 0; padding-left: 16px;">
+                            <li>Pronunciación y fluidez</li>
+                            <li>Vocabulario apropiado al nivel</li>
+                            {% if nivel_codigo == 'B1' %}
+                            <li>Coherencia y riqueza léxica</li>
+                            {% elif nivel_codigo == 'A2' %}
+                            <li>Coherencia del discurso</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </aside>
+
+                {# Result panel (hidden until finalize) #}
+                <div id="resultado-panel"
+                     style="display: none; background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 20px;">
+
+                    <p style="font-size: 13px; font-weight: 700; color: var(--g700); margin: 0 0 14px 0;">Resultados de tu entrevista</p>
+
+                    {# Global score #}
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 4px 0;">Puntaje global</p>
+                        <div id="puntaje-display"
+                             style="font-size: 48px; font-weight: 900; color: var(--primary); line-height: 1;">
+                            —
+                        </div>
+                        <p id="aprobado-label" style="font-size: 13px; font-weight: 700; margin: 4px 0 0 0;"></p>
+                    </div>
+
+                    {# Scores by category #}
+                    <div id="scores-detail" style="margin-bottom: 16px;"></div>
+
+                    {# Suggestions (B1 only) #}
+                    <div id="sugerencias-display" style="display: none; background: var(--g50); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <p style="font-size: 12px; font-weight: 700; color: var(--g600); margin: 0 0 6px 0;">Sugerencias de mejora</p>
+                        <p id="sugerencias-text" style="font-size: 13px; color: var(--g700); margin: 0; line-height: 1.5;"></p>
+                    </div>
+
+                    {# Exam unlock notice #}
+                    <div id="examen-notice" style="display: none; background: var(--primary-light); border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center;">
+                        <p style="font-size: 13px; font-weight: 700; color: var(--primary); margin: 0;">
+                            🏆 ¡Examen desbloqueado! Todos los submódulos completados.
+                        </p>
+                    </div>
+
+                    <a href="{% url 'progress:dashboard' %}"
+                       style="display: block; text-align: center; padding: 12px 20px; border-radius: 9px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none;">
+                        Volver al Dashboard
+                    </a>
+                </div>
+
+                {# Error panel #}
+                <div id="error-panel"
+                     style="display: none; background: #FFF0F0; border: 1px solid #FCA5A5; border-radius: 10px; padding: 14px 16px;">
+                    <p style="font-size: 13px; font-weight: 700; color: #DC2626; margin: 0 0 4px 0;">Error</p>
+                    <p id="error-msg" style="font-size: 13px; color: #7F1D1D; margin: 0;"></p>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
-{% endblock %}
+
+{# ── JS globals (must come before ai_interview.js) ── #}
+{% csrf_token %}
+<script>
+  const SESION_ID        = {{ sesion_id }};
+  const NIVEL_CODIGO     = "{{ nivel_codigo }}";
+  const TTS_RATE         = {{ tts_rate }};
+  const TIEMPO_RESPUESTA = {{ tiempo_respuesta }};
+  const TURNO_URL        = "{{ turno_url }}";
+  const FINALIZAR_URL    = "{{ finalizar_url }}";
+</script>
+<script src="{% static 'learning/js/ai_interview.js' %}"></script>
+{% endblock content %}

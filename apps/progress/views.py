@@ -15,30 +15,6 @@ from apps.progress.models import IntentoEjercicio
 from apps.shared.utils import _submodulo_completado
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  UTILIDAD INTERNA
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _calcular_submodulos_completados(perfil, nivel):
-    """
-    Devuelve cuántos submódulos del nivel dado están completados por el perfil.
-    Un submódulo se considera completado cuando TODOS sus ejercicios tienen
-    puntaje >= 80 y activo=True.
-    """
-    completados = 0
-    for submodulo in nivel.submodulos.all():
-        total_ej = submodulo.ejercicios.count()
-        if total_ej == 0:
-            continue
-        aprobados = IntentoEjercicio.objects.filter(
-            perfil=perfil,
-            ejercicio__submodulo=submodulo,
-            puntaje__gte=80,
-            activo=True,
-        ).count()
-        if aprobados >= total_ej:
-            completados += 1
-    return completados
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -96,7 +72,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
             elif nivel.orden == nivel_activo.orden:
                 estado          = 'activo'
-                sub_completados = _calcular_submodulos_completados(perfil, nivel)
+                sub_completados = sum(1 for sub in nivel.submodulos.all() if _submodulo_completado(perfil, sub))
                 total_subs      = nivel.submodulos.count()
                 progreso        = (
                     int((sub_completados / total_subs) * 100)
@@ -180,7 +156,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # El examen está disponible solo si los 3 submódulos del nivel activo
         # están completados (todos con puntaje >= 80, activo=True)
         total_subs_activo = nivel_activo.submodulos.count()
-        subs_completados  = _calcular_submodulos_completados(perfil, nivel_activo)
+        subs_completados  = sum(1 for sub in nivel_activo.submodulos.all() if _submodulo_completado(perfil, sub))
         examen_disponible = total_subs_activo > 0 and subs_completados >= total_subs_activo
 
         intentos_usados = ExamenIntento.objects.filter(
@@ -246,7 +222,7 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 
         for nivel in niveles_db:
             total_subs      = nivel.submodulos.count()
-            sub_completados = _calcular_submodulos_completados(perfil, nivel)
+            sub_completados = sum(1 for sub in nivel.submodulos.all() if _submodulo_completado(perfil, sub))
 
             if nivel.orden < nivel_activo.orden:
                 estado   = 'completado'

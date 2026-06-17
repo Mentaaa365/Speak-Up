@@ -79,3 +79,23 @@ class EjercicioModelTests(TestCase):
         ejercicio.refresh_from_db()
 
         self.assertEqual(ejercicio.contenido_json, payload)
+
+    def test_texto_objetivo_round_trip(self):
+        """WU-1.T-1: texto_objetivo persists correctly on new Ejercicio."""
+        nivel = NivelMCER.objects.create(codigo="A1", orden=1)
+        submodulo = Submodulo.objects.create(nivel=nivel, tipo="vocabulario", orden=1)
+
+        ejercicio = Ejercicio.objects.create(
+            submodulo=submodulo,
+            contenido_json={},
+            nivel_dificultad="A1",
+            texto_objetivo="Hello world",
+        )
+        ejercicio.refresh_from_db()
+
+        self.assertEqual(ejercicio.texto_objetivo, "Hello world")
+
+    def test_texto_objetivo_is_text_field(self):
+        """WU-1.T-1: texto_objetivo must be a TextField, not CharField."""
+        field = Ejercicio._meta.get_field("texto_objetivo")
+        self.assertEqual(field.get_internal_type(), "TextField")

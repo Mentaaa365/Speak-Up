@@ -11,6 +11,7 @@ class IntentoEjercicio(models.Model):
     puntaje = models.DecimalField(max_digits=5, decimal_places=2)
     activo = models.BooleanField(default=True)
     fecha_completado = models.DateTimeField(auto_now_add=True)
+    transcripcion = models.TextField(null=True, blank=True)
 
     class Meta:
         indexes = [

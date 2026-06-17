@@ -29,3 +29,4 @@ class Ejercicio(models.Model):
     )
     contenido_json = models.JSONField(default=dict)
     nivel_dificultad = models.CharField(max_length=2)
+    texto_objetivo = models.TextField()

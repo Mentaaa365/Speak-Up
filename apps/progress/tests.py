@@ -225,3 +225,44 @@ class IntentoEjercicioModelTests(TestCase):
             if index.name == "ix_intento_perfil_ej_activo"
         )
         self.assertEqual(list(target.fields), ["perfil", "ejercicio", "activo"])
+
+
+class IntentoEjercicioTranscripcionTests(TestCase):
+    """WU-1.T-2: transcripcion field on IntentoEjercicio."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="trans@example.com", email="trans@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+
+        nivel = NivelMCER.objects.create(codigo="A1", orden=1)
+        submodulo = Submodulo.objects.create(nivel=nivel, tipo="vocabulario", orden=1)
+        self.ejercicio = Ejercicio.objects.create(
+            submodulo=submodulo,
+            contenido_json={},
+            nivel_dificultad="A1",
+        )
+
+    def test_transcripcion_round_trip(self):
+        """An intento saved with transcripcion='appointment' round-trips correctly."""
+        intento = IntentoEjercicio.objects.create(
+            perfil=self.perfil,
+            ejercicio=self.ejercicio,
+            puntaje=85,
+            transcripcion="appointment",
+        )
+        intento.refresh_from_db()
+
+        self.assertEqual(intento.transcripcion, "appointment")
+
+    def test_transcripcion_nullable(self):
+        """An intento saved without transcripcion stores NULL — no error raised."""
+        intento = IntentoEjercicio.objects.create(
+            perfil=self.perfil,
+            ejercicio=self.ejercicio,
+            puntaje=70,
+        )
+        intento.refresh_from_db()
+
+        self.assertIsNone(intento.transcripcion)

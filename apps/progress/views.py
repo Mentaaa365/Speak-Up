@@ -1,11 +1,18 @@
+from decimal import Decimal, InvalidOperation
+import json
+
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views import View
+
 from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
 from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
+from apps.shared.utils import _submodulo_completado
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -296,3 +303,42 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
         context['submodulos'] = submodulos_data
 
         return context
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  RF-04 — Vocabulary exercise attempt endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GuardarEjercicioView(LoginRequiredMixin, View):
+    http_method_names = ['post']  # GET -> 405 automatically
+
+    def post(self, request, *args, **kwargs):
+        try:
+            body = json.loads(request.body)
+            ejercicio_id = body['ejercicio_id']
+            puntaje = Decimal(str(body['puntaje']))
+        except (json.JSONDecodeError, KeyError, InvalidOperation):
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
+        ejercicio = (Ejercicio.objects
+                     .select_related('submodulo__nivel')
+                     .filter(pk=ejercicio_id).first())
+        if ejercicio is None:
+            return JsonResponse({'error': 'not_found'}, status=404)
+        if ejercicio.submodulo.nivel != perfil.nivel_mcer:
+            return JsonResponse({'error': 'level_mismatch'}, status=403)
+
+        IntentoEjercicio.objects.filter(
+            perfil=perfil, ejercicio=ejercicio, activo=True
+        ).update(activo=False)
+        IntentoEjercicio.objects.create(
+            perfil=perfil, ejercicio=ejercicio, puntaje=puntaje,
+            activo=True, transcripcion=body.get('transcripcion'),
+        )
+        completado = _submodulo_completado(perfil, ejercicio.submodulo)
+        return JsonResponse({
+            'aprobado': puntaje >= 80,
+            'puntaje': str(puntaje.quantize(Decimal('0.01'))),
+            'submodulo_completado': completado,
+        })

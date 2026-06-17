@@ -266,3 +266,136 @@ class IntentoEjercicioTranscripcionTests(TestCase):
         intento.refresh_from_db()
 
         self.assertIsNone(intento.transcripcion)
+
+
+class GuardarEjercicioViewTests(TestCase):
+    """WU-3.T-1: GuardarEjercicioView — success + error paths (7 scenarios)."""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo="A2", orden=2, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="vocabulario", orden=1
+        )
+        self.ejercicio = Ejercicio.objects.create(
+            submodulo=self.submodulo,
+            contenido_json={},
+            nivel_dificultad="A2",
+            texto_objetivo="appointment",
+        )
+        self.user = User.objects.create_user(
+            username="vocab@example.com", email="vocab@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.url = reverse("progress:guardar_ejercicio")
+
+    def _post_json(self, data):
+        import json
+        return self.client.post(
+            self.url,
+            data=json.dumps(data),
+            content_type="application/json",
+        )
+
+    def test_sc01_approved_attempt_returns_200_aprobado_true(self):
+        """POST puntaje=85, transcripcion='appointment' -> 200, aprobado=True, intento creado."""
+        self.client.force_login(self.user)
+        response = self._post_json(
+            {"ejercicio_id": self.ejercicio.pk, "puntaje": 85, "transcripcion": "appointment"}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["aprobado"])
+        self.assertEqual(
+            IntentoEjercicio.objects.filter(
+                perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+            ).count(),
+            1,
+        )
+
+    def test_sc01_previous_active_attempts_deactivated(self):
+        """Previous active attempt is set activo=False before the new one is created."""
+        self.client.force_login(self.user)
+        old = IntentoEjercicio.objects.create(
+            perfil=self.perfil, ejercicio=self.ejercicio, puntaje=60, activo=True
+        )
+        self._post_json(
+            {"ejercicio_id": self.ejercicio.pk, "puntaje": 85, "transcripcion": "appointment"}
+        )
+        old.refresh_from_db()
+        self.assertFalse(old.activo)
+        self.assertEqual(
+            IntentoEjercicio.objects.filter(
+                perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+            ).count(),
+            1,
+        )
+
+    def test_sc02_failed_attempt_returns_200_aprobado_false(self):
+        """POST puntaje=55 -> 200, aprobado=False, intento persists."""
+        self.client.force_login(self.user)
+        response = self._post_json(
+            {"ejercicio_id": self.ejercicio.pk, "puntaje": 55}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data["aprobado"])
+        self.assertEqual(
+            IntentoEjercicio.objects.filter(
+                perfil=self.perfil, ejercicio=self.ejercicio
+            ).count(),
+            1,
+        )
+
+    def test_sc03_missing_transcripcion_stores_null(self):
+        """POST without transcripcion key -> intento.transcripcion IS NULL."""
+        self.client.force_login(self.user)
+        self._post_json({"ejercicio_id": self.ejercicio.pk, "puntaje": 90})
+        intento = IntentoEjercicio.objects.get(
+            perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+        )
+        self.assertIsNone(intento.transcripcion)
+
+    def test_sc04_nonexistent_ejercicio_returns_404(self):
+        """POST with unknown ejercicio_id -> 404 JSON."""
+        self.client.force_login(self.user)
+        response = self._post_json({"ejercicio_id": 999999, "puntaje": 80})
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("error", response.json())
+
+    def test_sc05_level_mismatch_returns_403_no_intento_created(self):
+        """POST where ejercicio.submodulo.nivel != perfil.nivel_mcer -> 403, no IntentoEjercicio."""
+        other_nivel = NivelMCER.objects.create(codigo="B1", orden=3, parametros_json={})
+        other_sub = Submodulo.objects.create(nivel=other_nivel, tipo="vocabulario", orden=1)
+        other_ej = Ejercicio.objects.create(
+            submodulo=other_sub,
+            contenido_json={},
+            nivel_dificultad="B1",
+            texto_objetivo="schedule",
+        )
+        self.client.force_login(self.user)
+        response = self._post_json({"ejercicio_id": other_ej.pk, "puntaje": 90})
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("error", response.json())
+        self.assertEqual(
+            IntentoEjercicio.objects.filter(perfil=self.perfil, ejercicio=other_ej).count(),
+            0,
+        )
+
+    def test_sc06_get_request_returns_405(self):
+        """GET to guardar-ejercicio/ -> 405."""
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_sc07_unauthenticated_post_redirects_to_login(self):
+        """POST without auth -> 302 redirect to login (project LOGIN_URL)."""
+        import json
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"ejercicio_id": self.ejercicio.pk, "puntaje": 80}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("login", response["Location"])

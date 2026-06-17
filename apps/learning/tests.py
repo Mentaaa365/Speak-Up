@@ -73,6 +73,70 @@ class SesionEntrevistaTests(TestCase):
         self.assertEqual(sesiones.first().puntaje, Decimal("82.50"))
 
 
+class SesionEntrevistaEstadoTests(TestCase):
+    """WU-2: SesionEntrevista ESTADO_CHOICES."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="estado_user", email="estado@example.com", password="x"
+        )
+        self.perfil = Perfil.objects.get(usuario=self.user)
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=1)
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="entrevista", orden=1
+        )
+
+    def test_default_estado_is_en_curso(self):
+        sesion = SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+        )
+        sesion.refresh_from_db()
+        self.assertEqual(sesion.estado, "EN_CURSO")
+
+    def test_puntaje_nullable_by_default(self):
+        sesion = SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+        )
+        sesion.refresh_from_db()
+        self.assertIsNone(sesion.puntaje)
+
+    def test_estado_choices_contains_three_values(self):
+        choices = dict(SesionEntrevista.ESTADO_CHOICES)
+        self.assertIn("EN_CURSO", choices)
+        self.assertIn("COMPLETADA", choices)
+        self.assertIn("ABANDONADA", choices)
+        self.assertEqual(len(choices), 3)
+
+    def test_completada_save_persists(self):
+        sesion = SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="COMPLETADA",
+            puntaje=Decimal("85.00"),
+        )
+        sesion.refresh_from_db()
+        self.assertEqual(sesion.estado, "COMPLETADA")
+        self.assertEqual(sesion.puntaje, Decimal("85.00"))
+
+    def test_row_not_deleted_on_abandon(self):
+        SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="ABANDONADA",
+        )
+        SesionEntrevista.objects.create(
+            perfil=self.perfil,
+            submodulo=self.submodulo,
+            estado="EN_CURSO",
+        )
+        count = SesionEntrevista.objects.filter(
+            perfil=self.perfil, submodulo=self.submodulo
+        ).count()
+        self.assertEqual(count, 2)
+
+
 class VocabularyLearningViewTests(TestCase):
     """WU-4: VocabularyLearningView — guards and context."""
 

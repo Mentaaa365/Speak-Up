@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     "apps.exams.apps.ExamsConfig",
     "apps.progress.apps.ProgressConfig",
     "apps.question_bank.apps.QuestionBankConfig",
-    
+    "apps.shared.apps.SharedConfig",
 ]
 
 MIDDLEWARE = [

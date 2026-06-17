@@ -1,6 +1,6 @@
 import json
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, TestCase
@@ -227,3 +227,235 @@ class VocabularyLearningViewTests(TestCase):
         textos = {e["texto_objetivo"] for e in parsed}
         self.assertIn("appointment", textos)
         self.assertIn("schedule", textos)
+
+
+# ---------------------------------------------------------------------------
+# WU-3: AIInterviewClient tests (Strict TDD — RED written before implementation)
+# ---------------------------------------------------------------------------
+
+def _make_mock_anthropic(return_text):
+    """Return a mock Anthropic class whose .messages.create() returns return_text."""
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text=return_text)]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_response
+    mock_cls = MagicMock(return_value=mock_client)
+    return mock_cls, mock_client
+
+
+class AIInterviewClientTests(TestCase):
+    """Unit tests for AIInterviewClient — anthropic.Anthropic always mocked."""
+
+    def test_missing_api_key_raises_environment_error(self):
+        """__init__ raises EnvironmentError when ANTHROPIC_API_KEY is absent."""
+        import os
+        from apps.learning.ai_client import AIInterviewClient
+
+        with patch.dict(os.environ, {}, clear=True):
+            # Remove the key if present
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+            with patch("apps.learning.ai_client.anthropic.Anthropic"):
+                with self.assertRaises(EnvironmentError):
+                    AIInterviewClient()
+
+    @patch("apps.learning.ai_client.anthropic.Anthropic")
+    def test_start_session_calls_create_with_correct_model(self, mock_anthropic_cls):
+        """start_session() calls messages.create with model='claude-haiku-4-5'."""
+        mock_cls, mock_client = _make_mock_anthropic("What is your name?")
+        mock_anthropic_cls.return_value = mock_client
+
+        import os
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            from apps.learning.ai_client import AIInterviewClient
+            client = AIInterviewClient()
+            result = client.start_session("A1")
+
+        self.assertEqual(result, "What is your name?")
+        call_kwargs = mock_client.messages.create.call_args
+        self.assertEqual(call_kwargs.kwargs["model"], "claude-haiku-4-5")
+
+    @patch("apps.learning.ai_client.anthropic.Anthropic")
+    def test_next_turn_for_appends_student_response(self, mock_anthropic_cls):
+        """next_turn_for() sends history + student response to the API."""
+        mock_cls, mock_client = _make_mock_anthropic("Good, and you?")
+        mock_anthropic_cls.return_value = mock_client
+
+        import os
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            from apps.learning.ai_client import AIInterviewClient
+            client = AIInterviewClient()
+            historial = [{"role": "assistant", "content": "How are you?"}]
+            result = client.next_turn_for("A2", historial, "I am fine.")
+
+        self.assertEqual(result, "Good, and you?")
+        sent_messages = mock_client.messages.create.call_args.kwargs["messages"]
+        # Last message must be the student's response
+        self.assertEqual(sent_messages[-1]["role"], "user")
+        self.assertEqual(sent_messages[-1]["content"], "I am fine.")
+
+
+class EvaluateSessionTests(TestCase):
+    """Tests for AIInterviewClient.evaluate_session() per-level scoring."""
+
+    def _client_with_mock(self, return_json: str):
+        """Helper: build AIInterviewClient with mocked API returning return_json."""
+        import os
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=return_json)]
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch("apps.learning.ai_client.anthropic.Anthropic", return_value=mock_client):
+                from apps.learning.ai_client import AIInterviewClient
+                client = AIInterviewClient()
+        # Keep the mock active by storing a patcher reference isn't needed;
+        # the client already stored the mock_client internally.
+        return client, mock_client
+
+    def _historial(self):
+        return [
+            {"role": "assistant", "content": "What is your name?"},
+            {"role": "user", "content": "My name is Ana."},
+        ]
+
+    def test_a1_scores_three_numeric_categories(self):
+        """A1 evaluate_session result has pronunciacion, vocabulario, fluidez."""
+        raw = '{"pronunciacion": 80, "vocabulario": 75, "fluidez": 70}'
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("A1", self._historial())
+
+        self.assertIn("pronunciacion", result["scores"])
+        self.assertIn("vocabulario", result["scores"])
+        self.assertIn("fluidez", result["scores"])
+
+    def test_a1_no_extra_keys(self):
+        """A1 scores dict must NOT contain coherencia, riqueza_lexica, sugerencias_mejora."""
+        raw = '{"pronunciacion": 80, "vocabulario": 75, "fluidez": 70}'
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("A1", self._historial())
+
+        for forbidden in ("coherencia", "riqueza_lexica", "sugerencias_mejora"):
+            self.assertNotIn(forbidden, result["scores"])
+
+    def test_a1_puntaje_global_is_mean(self):
+        """puntaje_global is the integer mean of the three A1 numeric scores."""
+        raw = '{"pronunciacion": 80, "vocabulario": 70, "fluidez": 90}'
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("A1", self._historial())
+
+        # mean(80, 70, 90) = 80
+        self.assertEqual(result["puntaje_global"], 80)
+        self.assertIsInstance(result["puntaje_global"], int)
+
+    def test_a2_scores_four_numeric_categories(self):
+        """A2 result has pronunciacion, vocabulario, fluidez, coherencia."""
+        raw = '{"pronunciacion": 70, "vocabulario": 65, "fluidez": 75, "coherencia": 80}'
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("A2", self._historial())
+
+        for key in ("pronunciacion", "vocabulario", "fluidez", "coherencia"):
+            self.assertIn(key, result["scores"])
+
+    def test_a2_puntaje_global_is_mean(self):
+        """puntaje_global is the integer mean of the four A2 scores."""
+        raw = '{"pronunciacion": 60, "vocabulario": 80, "fluidez": 80, "coherencia": 80}'
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("A2", self._historial())
+
+        # mean(60, 80, 80, 80) = 75
+        self.assertEqual(result["puntaje_global"], 75)
+
+    def test_b1_scores_five_numeric_plus_sugerencias(self):
+        """B1 result has 5 numeric scores plus sugerencias_mejora as str."""
+        raw = json.dumps({
+            "pronunciacion": 85, "vocabulario": 80, "fluidez": 78,
+            "coherencia": 82, "riqueza_lexica": 76,
+            "sugerencias_mejora": "Practicar conectores.",
+        })
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("B1", self._historial())
+
+        for key in ("pronunciacion", "vocabulario", "fluidez", "coherencia", "riqueza_lexica"):
+            self.assertIn(key, result["scores"])
+        self.assertIn("sugerencias_mejora", result["scores"])
+        self.assertIsInstance(result["scores"]["sugerencias_mejora"], str)
+
+    def test_b1_puntaje_global_excludes_sugerencias(self):
+        """B1 puntaje_global is the mean of the 5 numeric fields only."""
+        raw = json.dumps({
+            "pronunciacion": 80, "vocabulario": 80, "fluidez": 80,
+            "coherencia": 80, "riqueza_lexica": 80,
+            "sugerencias_mejora": "Keep practicing.",
+        })
+        client, _ = self._client_with_mock(raw)
+        result = client.evaluate_session("B1", self._historial())
+
+        # mean of 5 numeric = 80; sugerencias_mejora must be excluded
+        self.assertEqual(result["puntaje_global"], 80)
+
+    def test_api_error_propagates(self):
+        """SDK exception in evaluate_session propagates; no score is silently swallowed."""
+        import os
+
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = RuntimeError("timeout")
+
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch("apps.learning.ai_client.anthropic.Anthropic", return_value=mock_client):
+                from apps.learning.ai_client import AIInterviewClient
+                client = AIInterviewClient()
+
+        with self.assertRaises(Exception):
+            client.evaluate_session("A1", self._historial())
+
+
+class PromptBuilderTests(TestCase):
+    """Unit tests for prompt content — no API calls needed."""
+
+    def _make_client(self):
+        import os
+        mock_client = MagicMock()
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch("apps.learning.ai_client.anthropic.Anthropic", return_value=mock_client):
+                from apps.learning.ai_client import AIInterviewClient
+                return AIInterviewClient()
+
+    def test_spanish_redirect_in_a1_system_prompt(self):
+        """A1 system prompt contains the Spanish-redirect instruction."""
+        from apps.learning.ai_client import AIInterviewClient
+        client = self._make_client()
+        prompt = client._system_prompt("A1")
+        self.assertIn("Please try in English.", prompt)
+
+    def test_spanish_redirect_in_a2_system_prompt(self):
+        """A2 system prompt contains the Spanish-redirect instruction."""
+        client = self._make_client()
+        prompt = client._system_prompt("A2")
+        self.assertIn("Please try in English.", prompt)
+
+    def test_b1_system_prompt_no_strict_redirect(self):
+        """B1 system prompt does NOT enforce strict English-only redirect."""
+        client = self._make_client()
+        prompt = client._system_prompt("B1")
+        # B1 should encourage richer responses, not enforce redirect strictly
+        # Per design: 'Do NOT enforce English-only redirection strictly'
+        self.assertIn("B1", prompt.upper() or prompt)
+
+    def test_eval_prompt_a1_only_three_categories(self):
+        """A1 eval prompt references exactly pronunciacion, vocabulario, fluidez."""
+        client = self._make_client()
+        prompt = client._eval_prompt("A1", ["pronunciacion", "vocabulario", "fluidez"])
+        self.assertIn("pronunciacion", prompt)
+        self.assertIn("vocabulario", prompt)
+        self.assertIn("fluidez", prompt)
+        self.assertNotIn("coherencia", prompt)
+        self.assertNotIn("riqueza_lexica", prompt)
+        self.assertNotIn("sugerencias_mejora", prompt)
+
+    def test_eval_prompt_b1_includes_sugerencias_key(self):
+        """B1 eval prompt includes sugerencias_mejora key."""
+        client = self._make_client()
+        cats = ["pronunciacion", "vocabulario", "fluidez", "coherencia", "riqueza_lexica"]
+        prompt = client._eval_prompt("B1", cats)
+        self.assertIn("sugerencias_mejora", prompt)

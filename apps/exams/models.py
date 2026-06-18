@@ -22,6 +22,7 @@ class ExamenIntento(models.Model):
     )
     puntaje = models.DecimalField(max_digits=5, decimal_places=2)
     aprobado = models.BooleanField(default=False)
+    activo = models.BooleanField(default=True)
     detalle_json = models.JSONField(default=dict)
     creado_en = models.DateTimeField(auto_now_add=True)
 

@@ -23,7 +23,7 @@
                     <a href="{% url 'progress:dashboard' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:dashboard' %}active{% endif %}">
                         <span>🏠</span> Dashboard
                     </a>
-                    <a href="{% url 'learning:vocabulary' %}" class="nav-item {% if request.resolver_match.namespace == 'learning' %}active{% endif %}">
+                    <a href="{% url 'learning:router_nivel' %}" class="nav-item {% if request.resolver_match.namespace == 'learning' %}active{% endif %}">
                         <span>📚</span> Mi Nivel
                     </a>
                     <a href="{% url 'progress:detail' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:detail' %}active{% endif %}">

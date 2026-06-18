@@ -1,6 +1,8 @@
 from django.urls import path
 from . import views
+from .views import VocabularyLearningView, MusicLearningView, MiNivelRouterView
 
+app_name = 'learning'
 
 # 🔥 LA SOLUCIÓN: Registramos el namespace en inglés exigido por la plantilla
 app_name = 'learning'
@@ -13,4 +15,5 @@ urlpatterns = [
     path('ai-interview/', views.AiInterviewLearningView.as_view(), name='ai_interview'),
     path('ai-interview/turno/', views.TurnoEntrevistaView.as_view(), name='interview_turno'),
     path('ai-interview/finalizar/', views.FinalizarEntrevistaView.as_view(), name='interview_finalizar'),
+    path('mi-nivel-smart/', MiNivelRouterView.as_view(), name='router_nivel'),
 ]

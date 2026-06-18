@@ -5,6 +5,7 @@ import uuid
 from decimal import Decimal
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views import View
@@ -13,6 +14,8 @@ from django.views.generic import TemplateView
 from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER
 from apps.exams.models import Certificado, ExamenIntento
+from apps.learning.models import SesionEntrevista
+from apps.progress.models import IntentoEjercicio
 from apps.question_bank.models import Option, Question
 from apps.shared.utils import _similitud
 
@@ -176,6 +179,10 @@ class ExamStartView(LoginRequiredMixin, View):
         )
         aprobado = puntaje >= Decimal('80')
 
+        score_speaking = min(correct_speaking * 8, 40)
+        score_listening = min(correct_listening * 8, 40)
+        score_choice = min(correct_choice * 2, 20)
+
         intento = ExamenIntento.objects.create(
             perfil=perfil,
             tipo=tipo,
@@ -183,6 +190,8 @@ class ExamStartView(LoginRequiredMixin, View):
             puntaje=puntaje,
             aprobado=aprobado,
         )
+
+        reset_realizado = False
 
         if aprobado:
             if tipo == 'PROMOCION' and nivel_siguiente:
@@ -194,10 +203,62 @@ class ExamStartView(LoginRequiredMixin, View):
                     codigo_hash=hashlib.sha256(str(uuid.uuid4()).encode()).hexdigest(),
                     nivel=nivel_activo,
                 )
+        else:
+            # Check if soft reset is needed (2 active failed attempts)
+            active_count = ExamenIntento.objects.filter(
+                perfil=perfil,
+                nivel_objetivo=nivel_activo,
+                tipo__in=['PROMOCION', 'CERTIFICACION'],
+                activo=True,
+            ).count()
+
+            if active_count >= 2:
+                with transaction.atomic():
+                    IntentoEjercicio.objects.filter(
+                        perfil=perfil,
+                        ejercicio__submodulo__nivel=nivel_activo,
+                        activo=True,
+                    ).update(activo=False)
+
+                    SesionEntrevista.objects.filter(
+                        perfil=perfil,
+                        submodulo__nivel=nivel_activo,
+                        estado='COMPLETADA',
+                    ).update(estado='ABANDONADA')
+
+                    ExamenIntento.objects.filter(
+                        perfil=perfil,
+                        nivel_objetivo=nivel_activo,
+                        tipo__in=['PROMOCION', 'CERTIFICACION'],
+                        activo=True,
+                    ).update(activo=False)
+
+                reset_realizado = True
 
         request.session.pop('examen_promocion_ids', None)
 
-        return redirect(reverse_lazy('progress:dashboard'))
+        # Compute intentos_restantes AFTER potential reset
+        post_active_count = ExamenIntento.objects.filter(
+            perfil=perfil,
+            nivel_objetivo=nivel_activo,
+            tipo__in=['PROMOCION', 'CERTIFICACION'],
+            activo=True,
+        ).count()
+        intentos_restantes = 2 - post_active_count
+
+        return render(request, self.template_name, {
+            'resultado': True,
+            'aprobado': aprobado,
+            'puntaje': puntaje,
+            'score_speaking': score_speaking,
+            'score_listening': score_listening,
+            'score_choice': score_choice,
+            'tipo': tipo,
+            'nivel_activo': nivel_activo,
+            'nivel_siguiente': nivel_siguiente,
+            'intentos_restantes': intentos_restantes,
+            'reset_realizado': reset_realizado,
+        })
 
 
 class CertificateView(LoginRequiredMixin, View):

@@ -302,9 +302,10 @@ class MiNivelRouterView(LoginRequiredMixin, View):
         # 2. Lógica para saber si completó Vocabulario
         ejercicios_vocab_total = sub_vocabulario.ejercicios.count() if sub_vocabulario else 0
         ejercicios_vocab_aprobados = IntentoEjercicio.objects.filter(
-            perfil=perfil, 
+            perfil=perfil,
             ejercicio__submodulo=sub_vocabulario,
-            puntaje__gte=80
+            puntaje__gte=80,
+            activo=True,
         ).count()
         
         vocab_completado = (ejercicios_vocab_total > 0) and (ejercicios_vocab_aprobados >= ejercicios_vocab_total)
@@ -312,9 +313,10 @@ class MiNivelRouterView(LoginRequiredMixin, View):
         # 3. Lógica para saber si completó Música
         ejercicios_musica_total = sub_musica.ejercicios.count() if sub_musica else 0
         ejercicios_musica_aprobados = IntentoEjercicio.objects.filter(
-            perfil=perfil, 
+            perfil=perfil,
             ejercicio__submodulo=sub_musica,
-            puntaje__gte=80
+            puntaje__gte=80,
+            activo=True,
         ).count()
         
         musica_completada = (ejercicios_musica_total > 0) and (ejercicios_musica_aprobados >= ejercicios_musica_total)

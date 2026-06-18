@@ -27,6 +27,6 @@ class Ejercicio(models.Model):
     submodulo = models.ForeignKey(
         Submodulo, on_delete=models.CASCADE, related_name="ejercicios"
     )
-    contenido_json = models.JSONField(default=dict)
+    contenido_json = models.JSONField(default=dict,blank=True)
     nivel_dificultad = models.CharField(max_length=2)
     texto_objetivo = models.TextField()

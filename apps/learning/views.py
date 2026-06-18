@@ -54,12 +54,51 @@ class VocabularyLearningView(LoginRequiredMixin, View):
         return render(request, self.template_name, context)
 
 
-class MusicLearningView(LoginRequiredMixin, TemplateView):
-    """
-    HU-04 / RF-04: Gestiona de forma parametrizada las actividades musicales
-    con reproducción de letra sincronizada (LRC) y pausas automáticas.
-    """
+class MusicLearningView(LoginRequiredMixin, View):
     template_name = 'learning/music.html'
+
+    def get(self, request, *args, **kwargs):
+        # 1. Obtenemos el perfil del usuario actual
+        try:
+            perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
+        except Perfil.DoesNotExist:
+            return redirect('authentication:login')
+
+        # 2. Buscamos el submódulo de tipo 'musica' para su nivel
+        submodulo = Submodulo.objects.filter(
+            nivel=perfil.nivel_mcer, 
+            tipo='musica'
+        ).first()
+
+        # Si no existe el submódulo, redirigimos al dashboard
+        if submodulo is None:
+            return redirect('progress:dashboard')
+
+        # 3. Extraemos los ejercicios vinculados al submódulo
+        ejercicios_qs = submodulo.ejercicios.all()
+        canciones_data = []
+
+        for e in ejercicios_qs:
+            # Manejamos el contenido_json (asumiendo que viene como diccionario o string)
+            contenido = e.contenido_json
+            if isinstance(contenido, str):
+                try:
+                    contenido = json.loads(contenido)
+                except json.JSONDecodeError:
+                    contenido = {}
+            
+            canciones_data.append({
+                'id': e.pk,
+                'titulo': e.texto_objetivo,
+                'config': contenido
+            })
+
+        # 4. Enviamos los datos al contexto del template
+        context = {
+            'submodulo': submodulo,
+            'canciones_json': json.dumps(canciones_data),
+        }
+        return render(request, self.template_name, context)
 
 
 class AiInterviewLearningView(LoginRequiredMixin, View):

@@ -100,12 +100,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # ── Barra 3: Submódulos del nivel activo ─────────────────────────────
         # ✅ CORRECCIÓN 4: datos reales desde BD en vez de lista hardcodeada.
         #    Si la BD todavía no tiene submódulos, muestra lista vacía sin romper.
+        # ── Barra 3: Submódulos del nivel activo ─────────────────────────────
         TIPO_A_NOMBRE = {
             'vocabulario': ('Vocabulario y Lectura',       '📖', reverse_lazy('learning:vocabulary')),
             'musica':      ('Actividades Musicales (LRC)', '🎵', reverse_lazy('learning:music')),
             'entrevista':  ('Entrevistas Orales con IA',   '🤖', '#'),
         }
         submodulos_data = []
+
+        # 🔥 VARIABLE NUEVA: Iniciamos asumiendo que el "anterior" está listo para abrir el primero
+        submodulo_anterior_completado = True
 
         for submodulo in nivel_activo.submodulos.all().order_by('orden'):
             total_ej  = submodulo.ejercicios.count()
@@ -124,15 +128,20 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 (submodulo.tipo.capitalize(), '📌', '#')
             )
 
+            # 🔥 LÓGICA CORREGIDA
             if completado:
                 estado  = 'completado'
                 detalle = f'Completado al 100% con éxito.'
-            elif progreso_sub > 0:
+            elif submodulo_anterior_completado:
+                # Si el anterior está completado (o si es el primer submódulo del bucle), se activa
                 estado  = 'activo'
                 detalle = f'{aprobados} de {total_ej} ejercicios superados.'
             else:
                 estado  = 'bloqueado'
                 detalle = 'Completa el submódulo anterior para desbloquear.'
+
+            # Actualizamos la variable para evaluar el siguiente submódulo en el ciclo
+            submodulo_anterior_completado = completado
 
             submodulos_data.append({
                 'nombre':   nombre,

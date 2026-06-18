@@ -78,6 +78,10 @@ class SpeakUpRegisterView(TemplateView):
             if 'email' in form.errors:
                 contexto['error_correo_duplicado'] = True
 
+            if 'password' in form.errors:
+                for error in form.errors['password']:
+                    messages.error(request, error)
+
             return render(request, self.template_name, contexto)
 
 class DummyView(TemplateView):

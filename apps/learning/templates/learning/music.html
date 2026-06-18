@@ -1,7 +1,35 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block content %}
-<div style="padding: 40px; max-width: 800px; margin: 0 auto;">
-    <h1 style="font-size: 24px; font-weight: 800; color: var(--g800);">🎵 Módulo de Actividades Musicales (LRC)</h1>
-    <p style="color: var(--g500);">Componente listo para el desarrollo del procesamiento de audio y sincronización de subtítulos.</p>
+<div style="padding: 40px; max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">🎵 <span id="song-title">Cargando canción...</span></h1>
+        <a href="{% url 'progress:dashboard' %}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Volver al Dashboard</a>
+    </div>
+
+    <div style="background: var(--g100); padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
+        <audio id="audio-player" controls style="width: 100%; max-width: 500px;"></audio>
+        
+        <div style="margin-top: 15px;">
+            <button id="karaoke-btn" style="padding: 10px 20px; border-radius: 8px; background: var(--secondary); color: white; border: none; font-weight: bold; cursor: pointer; display: none;">
+                🎤 Practicar línea actual
+            </button>
+            <p id="karaoke-status" style="font-size: 14px; margin-top: 10px; color: var(--g500);"></p>
+        </div>
+    </div>
+
+    <div id="lyrics-container" style="height: 400px; overflow-y: auto; padding: 20px; background: #fafafa; border-radius: 12px; border: 1px solid var(--g200); text-align: center; scroll-behavior: smooth;">
+        <p style="color: var(--g500); font-style: italic;">Presiona Play para comenzar...</p>
+    </div>
 </div>
+
+{% csrf_token %}
+<script>
+    const jsonString = '{{ canciones_json|escapejs }}';
+    const CANCIONES = JSON.parse(jsonString);
+    const GUARDAR_URL = "{% url 'progress:guardar_ejercicio' %}";
+</script>
+
+<script src="{% static 'learning/js/music.js' %}"></script>
 {% endblock content %}

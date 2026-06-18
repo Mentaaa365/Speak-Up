@@ -10,8 +10,7 @@ class SpeakUpPasswordValidator:
             raise ValidationError("Debe incluir al menos una letra mayúscula.")
         if not re.search(r'\d', password):
             raise ValidationError("Debe incluir al menos un número.")
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            raise ValidationError("Debe incluir al menos un símbolo especial.")
+        
 
     def get_help_text(self):
         return "Tu contraseña debe contener al menos 8 caracteres, una mayúscula, un número y un símbolo especial."

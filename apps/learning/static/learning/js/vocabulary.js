@@ -3,17 +3,17 @@
  * HU-03 / HU-04 · RF-04
  *
  * Consume los globales inyectados por vocabulary.html:
- *   const EXERCISES  = [{ id, texto_objetivo, nivel }, ...];
- *   const GUARDAR_URL = "/progress/guardar-ejercicio/";
+ * const EXERCISES  = [{ id, texto_objetivo, nivel }, ...];
+ * const GUARDAR_URL = "/progress/guardar-ejercicio/";
  *
  * Flujo por ejercicio:
- *   1. showExercise(index) muestra la card correspondiente
- *   2. TTS lee el texto objetivo (máx 2 veces, velocidad 1.0×)
- *   3. STT graba la pronunciación del estudiante
- *   4. score() compara palabra por palabra → puntaje 0–100
- *   5. submitAttempt() POST a GUARDAR_URL con ejercicio_id + puntaje + transcripcion
- *   6. showResult() colorea feedback, actualiza barra de progreso
- *   7. Si aprobado (puntaje ≥ 80) avanza al siguiente ejercicio tras 1.5 s
+ * 1. showExercise(index) muestra la card correspondiente
+ * 2. TTS lee el texto objetivo (máx 2 veces, velocidad 1.0×)
+ * 3. STT graba la pronunciación del estudiante
+ * 4. score() compara palabra por palabra → puntaje 0–100
+ * 5. submitAttempt() POST a GUARDAR_URL con ejercicio_id + puntaje + transcripcion
+ * 6. showResult() colorea feedback, actualiza barra de progreso
+ * 7. Si aprobado (puntaje ≥ 80) avanza al siguiente ejercicio tras 1.5 s
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -206,8 +206,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * Retorna un entero 0–100 (porcentaje de palabras en posición correcta).
      */
     const score = (transcript, target) => {
-        const tWords = transcript.toLowerCase().split(/\s+/);
-        const aWords = target.toLowerCase().split(/\s+/);
+        // 🔥 Limpieza: eliminamos signos de puntuación antes de separar
+        const cleanTranscript = transcript.toLowerCase().replace(/[.,!?¿¡]/g, '').trim();
+        const cleanTarget = target.toLowerCase().replace(/[.,!?¿¡]/g, '').trim();
+
+        const tWords = cleanTranscript.split(/\s+/);
+        const aWords = cleanTarget.split(/\s+/);
         let correct  = 0;
         aWords.forEach((w, i) => {
             if (tWords[i] === w) correct++;
@@ -258,8 +262,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!card) return;
 
         // ── Feedback palabra por palabra ──────────────────────────────────────
-        const targetWords  = ejercicio.texto_objetivo.toLowerCase().split(/\s+/);
-        const spokenWords  = transcript.toLowerCase().split(/\s+/);
+        // 🔥 Limpieza visual: para que las etiquetas verdes/rojas coincidan con el puntaje
+        const cleanTarget = ejercicio.texto_objetivo.toLowerCase().replace(/[.,!?¿¡]/g, '').trim();
+        const cleanSpoken = transcript.toLowerCase().replace(/[.,!?¿¡]/g, '').trim();
+
+        const targetWords  = cleanTarget.split(/\s+/);
+        const spokenWords  = cleanSpoken.split(/\s+/);
 
         const feedbackContainer = card.querySelector('#feedback-container');
         if (feedbackContainer) {

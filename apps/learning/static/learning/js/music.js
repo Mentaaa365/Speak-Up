@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).then((result) => {
                         // 3. Redirigir al dashboard cuando hagan clic en el botón
                         if (result.isConfirmed) {
-                            window.location.href = '/learning/dashboard'; // Cambia esta URL si la tuya es diferente
+                            window.location.href = DASHBOARD_URL;
                         }
                     });
                 }

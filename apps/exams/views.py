@@ -45,16 +45,19 @@ class ExamStartView(LoginRequiredMixin, View):
         ).exists():
             return redirect(reverse_lazy('progress:dashboard'))
 
-        # Guard 4: attempt limit (2) reached
-        intentos_usados = ExamenIntento.objects.filter(
+        # Guard 4: attempt limit (2) reached — count only active attempts
+        active_count = ExamenIntento.objects.filter(
             perfil=perfil,
             nivel_objetivo=nivel_activo,
             tipo__in=['PROMOCION', 'CERTIFICACION'],
+            activo=True,
         ).count()
-        if intentos_usados >= 2:
+        if active_count >= 2:
             return render(request, self.template_name, {
                 'error': 'Has agotado tus 2 intentos para este nivel.',
             })
+        intentos_restantes = 2 - active_count
+        is_ultimo_intento = (active_count == 1)
 
         # Guard 5: bank must have enough questions for this nivel
         bank = Question.objects.filter(
@@ -101,11 +104,24 @@ class ExamStartView(LoginRequiredMixin, View):
                 except Question.DoesNotExist:
                     continue
 
+        preguntas_payload = [{
+            'id': str(q.id),
+            'type': q.question_type,
+            'text': q.text,
+            'audioText': q.audio_text or '',
+            'targetPhrase': q.target_phrase or '',
+            'options': [{'id': str(o.id), 'text': o.text} for o in q.options.all()]
+                        if q.question_type in ('CHOICE', 'LISTENING') else [],
+        } for q in preguntas_seleccionadas]
+
         return render(request, self.template_name, {
             'nivel_activo': nivel_activo,
             'nivel_siguiente': nivel_siguiente,
             'tipo': tipo,
             'preguntas': preguntas_seleccionadas,
+            'preguntas_json': json.dumps(preguntas_payload),
+            'intentos_restantes': intentos_restantes,
+            'is_ultimo_intento': is_ultimo_intento,
         })
 
     def post(self, request, *args, **kwargs):

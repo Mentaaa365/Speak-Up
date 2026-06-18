@@ -1,0 +1,229 @@
+document.addEventListener('DOMContentLoaded', () => {
+    let questions = [];
+    let currentIndex = 0;
+    let userAnswers = [];
+    let playCount = 0;
+    let lastTranscript = "";
+
+    const TTS_RATE = {A1: 0.85, A2: 1.0, B1: 1.0}[NIVEL] || 1.0;
+
+    const questionCategory = document.getElementById('question-category');
+    const questionText = document.getElementById('question-text');
+    const optionsContainer = document.getElementById('options-container');
+    const btnNext = document.getElementById('btn-next');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const btnTts = document.getElementById('btn-tts');
+    const btnStt = document.getElementById('btn-stt');
+    const sttFeedback = document.getElementById('stt-feedback');
+
+    const STORAGE_KEY = 'exam_progress';
+
+    const inicializar = () => {
+        questions = PREGUNTAS;
+        if (!questions || questions.length === 0) {
+            questionText.textContent = 'No hay preguntas disponibles.';
+            btnNext.style.display = 'none';
+            return;
+        }
+
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                currentIndex = data.currentIndex || 0;
+                userAnswers = data.answers || [];
+            } catch (e) {
+                currentIndex = 0;
+                userAnswers = [];
+            }
+        }
+
+        if (currentIndex >= questions.length) {
+            localStorage.removeItem(STORAGE_KEY);
+            currentIndex = 0;
+            userAnswers = [];
+        }
+
+        loadQuestion();
+    };
+
+    // TTS engine with level-specific rate and 2-play cap
+    const speakText = (text) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = TTS_RATE;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    btnTts.onclick = () => {
+        if (playCount < 2) {
+            speakText(questions[currentIndex].audioText);
+            playCount++;
+            if (playCount >= 2) {
+                btnTts.disabled = true;
+                btnTts.style.opacity = "0.5";
+                btnTts.textContent = "🔊 Límite de reproducciones alcanzado";
+            }
+        }
+    };
+
+    // STT engine
+    const startListening = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+
+        sttFeedback.style.display = 'block';
+        sttFeedback.innerHTML = "<span style='color: var(--secondary); font-weight: 700;'>Escuchando... 🎙️</span>";
+        btnStt.disabled = true;
+
+        recognition.start();
+
+        recognition.onresult = (event) => {
+            lastTranscript = event.results[0][0].transcript.trim();
+            sttFeedback.innerHTML = `Tu respuesta grabada: <b>"${lastTranscript}"</b>`;
+            btnStt.disabled = false;
+            btnStt.innerHTML = "🔄 Volver a intentar";
+        };
+
+        recognition.onerror = (e) => {
+            sttFeedback.innerHTML = `
+                <div style="margin-top:10px;">
+                    <p style="color:var(--danger); font-size:13px; font-weight:600;">
+                        Error: ${e.error}. Verifica tu micrófono o conexión a internet e intenta nuevamente.
+                    </p>
+                </div>
+            `;
+            btnStt.disabled = false;
+        };
+
+        recognition.onend = () => {
+            if (!lastTranscript && btnStt.disabled) {
+                sttFeedback.textContent = "No se escuchó nada. Intenta de nuevo.";
+                btnStt.disabled = false;
+            }
+        };
+    };
+
+    btnStt.onclick = startListening;
+
+    const loadQuestion = () => {
+        const q = questions[currentIndex];
+
+        const progress = (currentIndex / questions.length) * 100;
+        progressBar.style.width = `${progress}%`;
+        progressPercentage.textContent = `${Math.round(progress)}%`;
+        progressText.textContent = `Pregunta ${currentIndex + 1} de ${questions.length}`;
+
+        questionCategory.style.display = 'inline-block';
+        questionCategory.textContent = q.type;
+        questionText.innerHTML = q.text;
+
+        optionsContainer.innerHTML = '';
+        btnTts.style.display = 'none';
+        btnTts.disabled = false;
+        btnTts.style.opacity = "1";
+        btnTts.innerHTML = "🔊 Escuchar Audio";
+
+        btnStt.style.display = 'none';
+        btnStt.innerHTML = "🎙️ Empezar a hablar";
+        btnStt.disabled = false;
+
+        sttFeedback.style.display = 'none';
+        sttFeedback.innerHTML = '';
+
+        playCount = 0;
+        lastTranscript = "";
+
+        if (q.type === 'CHOICE' || q.type === 'LISTENING') {
+            optionsContainer.style.display = 'grid';
+            q.options.forEach(opt => {
+                const label = document.createElement('label');
+                label.style.cssText = "display: flex; align-items: center; gap: 16px; padding: 18px; border: 2px solid var(--g200); border-radius: 12px; cursor: pointer; transition: all 0.2s ease;";
+                label.innerHTML = `
+                    <input type="radio" name="answer" value="${opt.id}" style="width: 20px; height: 20px; accent-color: var(--primary);">
+                    <span style="font-size: 15px; color: var(--g800);">${opt.text}</span>
+                `;
+                label.addEventListener('click', () => {
+                    document.querySelectorAll('#options-container label').forEach(l => l.style.borderColor = 'var(--g200)');
+                    label.style.borderColor = 'var(--primary)';
+                });
+                optionsContainer.appendChild(label);
+            });
+
+            if (q.type === 'LISTENING') {
+                btnTts.style.display = 'inline-flex';
+            }
+        } else if (q.type === 'SPEAKING') {
+            optionsContainer.style.display = 'none';
+            btnStt.style.display = 'inline-flex';
+        }
+    };
+
+    btnNext.addEventListener('click', () => {
+        const q = questions[currentIndex];
+        let answerToSave = "";
+
+        if (q.type !== 'SPEAKING') {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            if (!selected) return alert("Por favor, selecciona una opción para continuar.");
+            answerToSave = selected.value;
+        } else {
+            if (!lastTranscript) return alert("Por favor, graba tu respuesta usando el micrófono.");
+            answerToSave = lastTranscript;
+        }
+
+        userAnswers.push({
+            questionId: q.id,
+            type: q.type,
+            answer: answerToSave,
+            optionId: q.type !== 'SPEAKING' ? answerToSave : '',
+            targetPhrase: q.targetPhrase || '',
+        });
+
+        currentIndex++;
+
+        if (currentIndex < questions.length) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                currentIndex: currentIndex,
+                answers: userAnswers,
+            }));
+            loadQuestion();
+        } else {
+            btnNext.disabled = true;
+            btnNext.textContent = "Evaluando...";
+
+            localStorage.removeItem(STORAGE_KEY);
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = POST_URL;
+
+            const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfTokenElement ? csrfTokenElement.value : '';
+            form.appendChild(csrfInput);
+
+            const dataInput = document.createElement('input');
+            dataInput.type = 'hidden';
+            dataInput.name = 'answers_data';
+            dataInput.value = JSON.stringify(userAnswers);
+            form.appendChild(dataInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+
+    inicializar();
+});

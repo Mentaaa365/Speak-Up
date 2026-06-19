@@ -60,6 +60,8 @@ class VocabularyLearningView(LoginRequiredMixin, View):
 class MusicLearningView(LoginRequiredMixin, View):
     template_name = 'learning/music.html'
 
+    _PLAYBACK_RATE = {'A1': 0.85, 'A2': 1.0, 'B1': 1.0}
+
     def get(self, request, *args, **kwargs):
         # 1. Obtenemos el perfil del usuario actual
         try:
@@ -96,10 +98,13 @@ class MusicLearningView(LoginRequiredMixin, View):
                 'config': contenido
             })
 
-        # 4. Enviamos los datos al contexto del template
+        nivel_codigo = perfil.nivel_mcer.codigo
+
         context = {
             'submodulo': submodulo,
             'canciones_json': json.dumps(canciones_data),
+            'nivel_codigo': nivel_codigo,
+            'playback_rate': self._PLAYBACK_RATE.get(nivel_codigo, 1.0),
         }
         return render(request, self.template_name, context)
 

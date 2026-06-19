@@ -30,6 +30,8 @@
     const CANCIONES = JSON.parse(jsonString);
     const GUARDAR_URL = "{% url 'progress:guardar_ejercicio' %}";
     const DASHBOARD_URL = "{% url 'progress:dashboard' %}";
+    const NIVEL = "{{ nivel_codigo }}";
+    const PLAYBACK_RATE = {{ playback_rate }};
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>

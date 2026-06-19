@@ -4,7 +4,7 @@ import random
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -23,20 +23,31 @@ logger = logging.getLogger(__name__)
 #  UC2 — Pantalla de bienvenida / verificación de micrófono
 # ─────────────────────────────────────────────
 class DiagnosisWelcomeView(LoginRequiredMixin, TemplateView):
-    """
-    Pantalla de bienvenida del examen de diagnóstico (Verificación de micrófono).
-    """
     template_name = 'diagnosis/welcome.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        from apps.authentication.models import Perfil
+        try:
+            perfil = Perfil.objects.get(usuario=request.user)
+            if perfil.nivel_mcer:
+                return redirect('progress:dashboard')
+        except Perfil.DoesNotExist:
+            pass
+        return super().dispatch(request, *args, **kwargs)
 
-# ─────────────────────────────────────────────
-#  UC3 — Interfaz central del examen
-# ─────────────────────────────────────────────
+
 class DiagnosisTestView(LoginRequiredMixin, TemplateView):
-    """
-    Interfaz central del examen (Speaking, Listening y Vocabulario).
-    """
     template_name = 'diagnosis/test.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        from apps.authentication.models import Perfil
+        try:
+            perfil = Perfil.objects.get(usuario=request.user)
+            if perfil.nivel_mcer:
+                return redirect('progress:dashboard')
+        except Perfil.DoesNotExist:
+            pass
+        return super().dispatch(request, *args, **kwargs)
 
 
 # ─────────────────────────────────────────────

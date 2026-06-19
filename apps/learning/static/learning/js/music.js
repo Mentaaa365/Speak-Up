@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── PROGRESS SAVE (preserved from Ian) ────────────────────────────────
     const guardarProgreso = (puntaje, transcripcion) => {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-        return fetch(GUARDAR_URL, {
+        return fetchWithRetry(GUARDAR_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

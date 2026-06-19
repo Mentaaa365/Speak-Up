@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
-        fetch(EVALUAR_URL, {
+        fetchWithRetry(EVALUAR_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const puntaje   = score(transcript, ejercicio.texto_objetivo);
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
-        fetch(GUARDAR_URL, {
+        fetchWithRetry(GUARDAR_URL, {
             method:  'POST',
             headers: {
                 'Content-Type': 'application/json',

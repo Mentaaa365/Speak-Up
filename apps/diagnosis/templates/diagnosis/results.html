@@ -36,35 +36,48 @@
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 14px; font-weight: 700; color: var(--g700);">🗣️ Expresión Oral (Speaking)</span>
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_speaking }}% <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 40%</span></span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_speaking }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
-                    <div style="width: {% widthratio score_speaking 40 100 %}%; height: 100%; background: var(--primary);"></div>
+                    <div style="width: {% widthratio score_speaking 25 100 %}%; height: 100%; background: var(--primary);"></div>
                 </div>
             </div>
 
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 14px; font-weight: 700; color: var(--g700);">🎧 Comprensión Auditiva (Listening)</span>
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_listening }}% <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 40%</span></span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_listening }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
-                    <div style="width: {% widthratio score_listening 40 100 %}%; height: 100%; background: var(--primary);"></div>
+                    <div style="width: {% widthratio score_listening 25 100 %}%; height: 100%; background: var(--primary);"></div>
                 </div>
             </div>
 
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span style="font-size: 14px; font-weight: 700; color: var(--g700);">📖 Estructuras Gramaticales (Vocabulary)</span>
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_vocabulary }}% <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 20%</span></span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_vocabulary }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
-                    <div style="width: {% widthratio score_vocabulary 20 100 %}%; height: 100%; background: var(--primary);"></div>
+                    <div style="width: {% widthratio score_vocabulary 25 100 %}%; height: 100%; background: var(--primary);"></div>
                 </div>
             </div>
 
+            <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">✍️ Expresión Escrita (Writing)</span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_writing }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
+                </div>
+                <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
+                    <div style="width: {% widthratio score_writing 25 100 %}%; height: 100%; background: var(--primary);"></div>
+                </div>
+                {% if writing_pending %}
+                <p style="font-size: 12px; color: #D97706; margin: 8px 0 0 0; font-weight: 600;">⚠️ La evaluación de escritura está pendiente. El puntaje puede actualizarse.</p>
+                {% endif %}
+            </div>
+
             <div style="border-top: 1px solid var(--g200); padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 15px; font-weight: 800; color: var(--g800);">PUNTUACIÓN GLOBAL EXPERIMENTADA:</span>
+                <span style="font-size: 15px; font-weight: 800; color: var(--g800);">PUNTUACIÓN GLOBAL:</span>
                 <span style="font-size: 18px; font-weight: 900; color: var(--secondary);">{{ score_total }}% <span style="font-size: 12px; color: var(--g400); font-weight: 500;">/ 100%</span></span>
             </div>
         </div>

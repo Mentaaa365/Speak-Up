@@ -165,6 +165,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (q.type === 'SPEAKING') {
             optionsContainer.style.display = 'none';
             btnStt.style.display = 'inline-flex';
+        } else if (q.type === 'WRITING') {
+            optionsContainer.style.display = 'block';
+            optionsContainer.innerHTML = `
+                <textarea id="writing-answer" rows="6" placeholder="Write your answer in English..."
+                    style="width: 100%; padding: 16px; border: 2px solid var(--g200); border-radius: 12px;
+                    font-size: 15px; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+            `;
         }
     };
 
@@ -172,20 +179,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const q = questions[currentIndex];
         let answerToSave = "";
 
-        if (q.type !== 'SPEAKING') {
+        if (q.type === 'WRITING') {
+            const textarea = document.getElementById('writing-answer');
+            if (!textarea || !textarea.value.trim()) return alert("Por favor, escribe tu respuesta para continuar.");
+            answerToSave = textarea.value.trim();
+        } else if (q.type === 'SPEAKING') {
+            if (!lastTranscript) return alert("Por favor, graba tu respuesta usando el micrófono.");
+            answerToSave = lastTranscript;
+        } else {
             const selected = document.querySelector('input[name="answer"]:checked');
             if (!selected) return alert("Por favor, selecciona una opción para continuar.");
             answerToSave = selected.value;
-        } else {
-            if (!lastTranscript) return alert("Por favor, graba tu respuesta usando el micrófono.");
-            answerToSave = lastTranscript;
         }
 
         userAnswers.push({
             questionId: q.id,
             type: q.type,
             answer: answerToSave,
-            optionId: q.type !== 'SPEAKING' ? answerToSave : '',
+            optionId: (q.type !== 'SPEAKING' && q.type !== 'WRITING') ? answerToSave : '',
             targetPhrase: q.targetPhrase || '',
         });
 

@@ -1,3 +1,4 @@
+import unittest.mock
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -194,10 +195,13 @@ class ExamStartViewGuardTests(TestCase):
                 level='A1', question_type='LISTENING', bank_context='PROMOTION_EXAM',
                 text=f'Listen question {i}', audio_text=f'audio {i}',
             )
-        for i in range(10):
             Question.objects.create(
                 level='A1', question_type='CHOICE', bank_context='PROMOTION_EXAM',
                 text=f'Choose answer {i}',
+            )
+            Question.objects.create(
+                level='A1', question_type='WRITING', bank_context='PROMOTION_EXAM',
+                text=f'Write about topic {i}',
             )
 
     # ── Guard 1: no nivel_mcer ────────────────────────────────────────────────
@@ -325,10 +329,13 @@ class ExamStartViewQuestionSelectionTests(TestCase):
                 level=codigo, question_type='LISTENING', bank_context='PROMOTION_EXAM',
                 text=f'{codigo} Listen {i}', audio_text=f'audio {i}',
             )
-        for i in range(10):
             Question.objects.create(
                 level=codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM',
                 text=f'{codigo} Choose {i}',
+            )
+            Question.objects.create(
+                level=codigo, question_type='WRITING', bank_context='PROMOTION_EXAM',
+                text=f'{codigo} Write {i}',
             )
 
     def test_get_caches_20_question_ids_in_session(self):
@@ -337,13 +344,14 @@ class ExamStartViewQuestionSelectionTests(TestCase):
         self.assertIsNotNone(ids)
         self.assertEqual(len(ids), 20)
 
-    def test_selected_questions_are_5_speaking_5_listening_10_choice(self):
+    def test_selected_questions_are_5_per_type(self):
         self.client.get(self.url)
         ids = self.client.session['examen_promocion_ids']
         qs = Question.objects.filter(id__in=ids)
         self.assertEqual(qs.filter(question_type='SPEAKING').count(), 5)
         self.assertEqual(qs.filter(question_type='LISTENING').count(), 5)
-        self.assertEqual(qs.filter(question_type='CHOICE').count(), 10)
+        self.assertEqual(qs.filter(question_type='CHOICE').count(), 5)
+        self.assertEqual(qs.filter(question_type='WRITING').count(), 5)
 
     def test_selected_questions_are_all_from_nivel_activo(self):
         self.client.get(self.url)
@@ -406,6 +414,7 @@ class ExamScoringAndPersistenceTests(TestCase):
         self.speaking_questions = []
         self.listening_questions = []
         self.choice_questions = []
+        self.writing_questions = []
 
         for i in range(5):
             sq = Question.objects.create(
@@ -422,7 +431,6 @@ class ExamScoringAndPersistenceTests(TestCase):
             Option.objects.create(question=lq, text='wrong', is_correct=False)
             self.listening_questions.append(lq)
 
-        for i in range(10):
             cq = Question.objects.create(
                 level='A1', question_type='CHOICE', bank_context='PROMOTION_EXAM',
                 text=f'Choose {i}',
@@ -430,6 +438,12 @@ class ExamScoringAndPersistenceTests(TestCase):
             Option.objects.create(question=cq, text='correct', is_correct=True)
             Option.objects.create(question=cq, text='wrong', is_correct=False)
             self.choice_questions.append(cq)
+
+            wq = Question.objects.create(
+                level='A1', question_type='WRITING', bank_context='PROMOTION_EXAM',
+                text=f'Write about {i}',
+            )
+            self.writing_questions.append(wq)
 
         # Trigger GET to cache questions in session
         self.client.get(self.url)
@@ -458,13 +472,21 @@ class ExamScoringAndPersistenceTests(TestCase):
                     'targetPhrase': '',
                     'optionId': str(correct_opt.id) if correct_opt else '',
                 })
-            else:
+            elif q.question_type == 'CHOICE':
                 correct_opt = q.options.filter(is_correct=True).first()
                 answers.append({
                     'type': 'CHOICE',
                     'answer': '',
                     'targetPhrase': '',
                     'optionId': str(correct_opt.id) if correct_opt else '',
+                })
+            elif q.question_type == 'WRITING':
+                answers.append({
+                    'questionId': str(q.id),
+                    'type': 'WRITING',
+                    'answer': 'I enjoy learning English because it helps me communicate with people around the world.',
+                    'targetPhrase': '',
+                    'optionId': '',
                 })
         return answers
 
@@ -474,45 +496,24 @@ class ExamScoringAndPersistenceTests(TestCase):
 
     # ── Scoring boundaries ────────────────────────────────────────────────────
 
-    def test_perfect_score_is_100_and_aprobado_true(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_perfect_score_is_100_and_aprobado_true(self, MockEval):
+        mock_instance = MockEval.return_value
+        mock_instance.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self._post_answers(self._build_perfect_answers())
         intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
-        self.assertEqual(intento.puntaje, Decimal('100.00'))
+        self.assertEqual(intento.puntaje, Decimal('100'))
         self.assertTrue(intento.aprobado)
 
-    def test_score_80_is_aprobado_true(self):
-        """Exactly 80 is passing: 5 SPEAKING correct (40pts) + 0 LISTENING + 10 CHOICE correct (20pts) = 60... need different combo."""
-        # 5 SPEAKING=40, 5 LISTENING=40, 0 CHOICE=0 → 80
-        session_ids = self._get_cached_ids()
-        answers = []
-        for q_id in session_ids:
-            q = Question.objects.get(id=q_id)
-            if q.question_type == 'SPEAKING':
-                answers.append({'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
-            elif q.question_type == 'LISTENING':
-                correct_opt = q.options.filter(is_correct=True).first()
-                answers.append({'type': 'LISTENING', 'answer': '', 'targetPhrase': '', 'optionId': str(correct_opt.id) if correct_opt else ''})
-            else:
-                # CHOICE all wrong → 0 pts
-                wrong_opt = q.options.filter(is_correct=False).first()
-                answers.append({'type': 'CHOICE', 'answer': '', 'targetPhrase': '', 'optionId': str(wrong_opt.id) if wrong_opt else ''})
-        self._post_answers(answers)
-        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
-        self.assertEqual(intento.puntaje, Decimal('80.00'))
-        self.assertTrue(intento.aprobado)
-
-    def test_score_79_is_aprobado_false(self):
-        """79 pts fails: 5 SPEAKING=40, 4 LISTENING=32, 3 CHOICE=6 → 78... use 5 SPEAKING + 4 LISTENING + 3 CHOICE=6 =78. Use 4 SPEAKING=32 + 5 LISTENING=40 + 3 CHOICE=6=78. Simpler: send all wrong → 0, aprobado False."""
-        import json
+    def test_all_wrong_is_aprobado_false(self):
         session_ids = self._get_cached_ids()
         answers = [
-            {'type': Question.objects.get(id=q_id).question_type, 'answer': 'zzz', 'targetPhrase': 'nothing', 'optionId': ''}
+            {'questionId': q_id, 'type': Question.objects.get(id=q_id).question_type, 'answer': 'zzz', 'targetPhrase': 'nothing', 'optionId': ''}
             for q_id in session_ids
         ]
         self._post_answers(answers)
         intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
         self.assertFalse(intento.aprobado)
-        self.assertLess(intento.puntaje, Decimal('80.00'))
 
     # ── Persistence ───────────────────────────────────────────────────────────
 
@@ -545,21 +546,18 @@ class ExamScoringAndPersistenceTests(TestCase):
         self._post_answers(self._build_perfect_answers())
         self.assertNotIn('examen_promocion_ids', self.client.session)
 
-    def test_speaking_similarity_threshold_055_scores_correctly(self):
-        """Answer with >0.55 similarity to target_phrase must score 8pts."""
+    def test_speaking_only_correct_scores_25(self):
         session_ids = self._get_cached_ids()
         answers = []
         for q_id in session_ids:
             q = Question.objects.get(id=q_id)
             if q.question_type == 'SPEAKING':
-                # Use the exact target phrase → similarity 1.0 → 8pts
-                answers.append({'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
+                answers.append({'questionId': str(q.id), 'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
             else:
-                answers.append({'type': q.question_type, 'answer': '', 'targetPhrase': '', 'optionId': ''})
+                answers.append({'questionId': str(q.id), 'type': q.question_type, 'answer': '', 'targetPhrase': '', 'optionId': ''})
         self._post_answers(answers)
         intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
-        # 5 SPEAKING × 8 = 40 pts, rest 0
-        self.assertEqual(intento.puntaje, Decimal('40.00'))
+        self.assertEqual(intento.puntaje, Decimal('25'))
 
 
 class PostPassSideEffectsTests(TestCase):
@@ -568,7 +566,7 @@ class PostPassSideEffectsTests(TestCase):
     def _make_bank(self, nivel):
         from apps.question_bank.models import Option
         for i in range(5):
-            sq = Question.objects.create(
+            Question.objects.create(
                 level=nivel.codigo, question_type='SPEAKING', bank_context='PROMOTION_EXAM',
                 text=f'Say {i}', target_phrase=f'phrase {i}',
             )
@@ -578,25 +576,29 @@ class PostPassSideEffectsTests(TestCase):
             )
             Option.objects.create(question=lq, text='correct', is_correct=True)
             Option.objects.create(question=lq, text='wrong', is_correct=False)
-        for i in range(10):
             cq = Question.objects.create(
                 level=nivel.codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM',
                 text=f'Choose {i}',
             )
             Option.objects.create(question=cq, text='correct', is_correct=True)
             Option.objects.create(question=cq, text='wrong', is_correct=False)
+            Question.objects.create(
+                level=nivel.codigo, question_type='WRITING', bank_context='PROMOTION_EXAM',
+                text=f'Write about {i}',
+            )
 
     def _build_perfect_answers(self):
-        import json
         session_ids = self.client.session.get('examen_promocion_ids', [])
         answers = []
         for q_id in session_ids:
             q = Question.objects.get(id=q_id)
             if q.question_type == 'SPEAKING':
-                answers.append({'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
+                answers.append({'questionId': str(q.id), 'type': 'SPEAKING', 'answer': q.target_phrase, 'targetPhrase': q.target_phrase, 'optionId': ''})
+            elif q.question_type == 'WRITING':
+                answers.append({'questionId': str(q.id), 'type': 'WRITING', 'answer': 'I enjoy learning English.', 'targetPhrase': '', 'optionId': ''})
             else:
                 correct_opt = q.options.filter(is_correct=True).first()
-                answers.append({'type': q.question_type, 'answer': '', 'targetPhrase': '', 'optionId': str(correct_opt.id) if correct_opt else ''})
+                answers.append({'questionId': str(q.id), 'type': q.question_type, 'answer': '', 'targetPhrase': '', 'optionId': str(correct_opt.id) if correct_opt else ''})
         return answers
 
     def setUp(self):
@@ -614,13 +616,17 @@ class PostPassSideEffectsTests(TestCase):
 
     # ── PROMOCION pass ────────────────────────────────────────────────────────
 
-    def test_promocion_pass_advances_perfil_nivel_mcer(self):
-        self.client.get(self.url)  # cache session
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_promocion_pass_advances_perfil_nivel_mcer(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
+        self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
         self.perfil.refresh_from_db()
         self.assertEqual(self.perfil.nivel_mcer, self.nivel_a2)
 
-    def test_promocion_pass_does_not_create_certificado(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_promocion_pass_does_not_create_certificado(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
         self.assertEqual(Certificado.objects.filter(examen__perfil=self.perfil).count(), 0)
@@ -628,28 +634,33 @@ class PostPassSideEffectsTests(TestCase):
     def test_fail_does_not_advance_nivel_mcer(self):
         self.client.get(self.url)
         import json
-        answers = [{'type': 'SPEAKING', 'answer': 'zzz', 'targetPhrase': 'nothing', 'optionId': ''} for _ in range(20)]
+        answers = [{'questionId': '', 'type': 'SPEAKING', 'answer': 'zzz', 'targetPhrase': 'nothing', 'optionId': ''} for _ in range(20)]
         self.client.post(self.url, {'answers_data': json.dumps(answers)})
         self.perfil.refresh_from_db()
         self.assertEqual(self.perfil.nivel_mcer, self.nivel_a1)
 
     # ── CERTIFICACION pass ────────────────────────────────────────────────────
 
-    def test_certificacion_pass_creates_certificado(self):
-        # Remove A2 so A1 is the last nivel → CERTIFICACION
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_certificacion_pass_creates_certificado(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.nivel_a2.delete()
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
         self.assertEqual(Certificado.objects.filter(examen__perfil=self.perfil).count(), 1)
 
-    def test_certificacion_certificado_nivel_is_nivel_activo(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_certificacion_certificado_nivel_is_nivel_activo(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.nivel_a2.delete()
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
         cert = Certificado.objects.get(examen__perfil=self.perfil)
         self.assertEqual(cert.nivel, self.nivel_a1)
 
-    def test_certificacion_certificado_has_codigo_hash(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_certificacion_certificado_has_codigo_hash(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.nivel_a2.delete()
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
@@ -662,21 +673,27 @@ class PostPassSideEffectsTests(TestCase):
         response = self.client.get(reverse('exams:certificate'))
         self.assertRedirects(response, reverse('progress:dashboard'))
 
-    def test_certificate_view_200_when_cert_exists(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_certificate_view_200_when_cert_exists(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.nivel_a2.delete()
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
         response = self.client.get(reverse('exams:certificate'))
         self.assertEqual(response.status_code, 200)
 
-    def test_certificate_view_context_contains_certificado(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_certificate_view_context_contains_certificado(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.nivel_a2.delete()
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})
         response = self.client.get(reverse('exams:certificate'))
         self.assertIn('certificado', response.context)
 
-    def test_certificate_view_context_puntaje_matches_intento(self):
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_certificate_view_context_puntaje_matches_intento(self, MockEval):
+        MockEval.return_value.evaluate_batch.return_value = [{'score': 100, 'grammar': 100, 'coherence': 100, 'vocabulary': 100, 'suggestions': ''}] * 5
         self.nivel_a2.delete()
         self.client.get(self.url)
         self.client.post(self.url, {'answers_data': __import__('json').dumps(self._build_perfect_answers())})

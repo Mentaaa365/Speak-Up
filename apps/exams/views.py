@@ -21,8 +21,12 @@ from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER
 from apps.exams.models import Certificado, ExamenIntento
 from apps.learning.models import SesionEntrevista
+from apps.learning.writing_evaluator import AIEvaluationError, AIWritingEvaluator
 from apps.progress.models import IntentoEjercicio
 from apps.question_bank.models import Option, Question
+from apps.shared.scoring import (
+    LISTENING_MAX, SPEAKING_MAX, VOCABULARY_MAX, WRITING_MAX,
+)
 from apps.shared.utils import _similitud
 
 
@@ -83,7 +87,8 @@ class ExamStartView(LoginRequiredMixin, View):
         if (
             bank.filter(question_type='SPEAKING').count() < 5
             or bank.filter(question_type='LISTENING').count() < 5
-            or bank.filter(question_type='CHOICE').count() < 10
+            or bank.filter(question_type='CHOICE').count() < 5
+            or bank.filter(question_type='WRITING').count() < 5
         ):
             return render(request, self.template_name, {
                 'error': 'Este examen aún no tiene preguntas configuradas. Inténtalo más tarde.',
@@ -99,7 +104,7 @@ class ExamStartView(LoginRequiredMixin, View):
         preguntas_ids = request.session.get('examen_promocion_ids')
         if not preguntas_ids:
             seleccion = []
-            for q_type, cantidad in [('SPEAKING', 5), ('LISTENING', 5), ('CHOICE', 10)]:
+            for q_type, cantidad in [('SPEAKING', 5), ('LISTENING', 5), ('CHOICE', 5), ('WRITING', 5)]:
                 grupo = list(
                     Question.objects.filter(
                         bank_context='PROMOTION_EXAM',
@@ -163,6 +168,10 @@ class ExamStartView(LoginRequiredMixin, View):
         correct_speaking = 0
         correct_listening = 0
         correct_choice = 0
+        total_speaking = 0
+        total_listening = 0
+        total_choice = 0
+        writing_items = []
 
         for item in user_answers:
             q_type = item.get('type', '')
@@ -171,30 +180,57 @@ class ExamStartView(LoginRequiredMixin, View):
             option_id = item.get('optionId', '')
 
             if q_type == 'SPEAKING':
+                total_speaking += 1
                 if target and _similitud(answer, target) >= 0.55:
                     correct_speaking += 1
-            elif q_type in ('LISTENING', 'CHOICE'):
+            elif q_type == 'LISTENING':
+                total_listening += 1
                 if option_id:
                     try:
-                        opt = Option.objects.get(id=option_id)
-                        if opt.is_correct:
-                            if q_type == 'LISTENING':
-                                correct_listening += 1
-                            else:
-                                correct_choice += 1
+                        if Option.objects.get(id=option_id).is_correct:
+                            correct_listening += 1
                     except Option.DoesNotExist:
                         pass
+            elif q_type == 'CHOICE':
+                total_choice += 1
+                if option_id:
+                    try:
+                        if Option.objects.get(id=option_id).is_correct:
+                            correct_choice += 1
+                    except Option.DoesNotExist:
+                        pass
+            elif q_type == 'WRITING':
+                q_id = item.get('questionId', '')
+                try:
+                    q_obj = Question.objects.get(id=q_id)
+                    writing_items.append({'text': answer, 'prompt': q_obj.text})
+                except Question.DoesNotExist:
+                    writing_items.append({'text': answer, 'prompt': ''})
 
-        puntaje = Decimal(
-            min(correct_speaking * 8, 40)
-            + min(correct_listening * 8, 40)
-            + min(correct_choice * 2, 20)
-        )
+        score_speaking = round(correct_speaking / total_speaking * SPEAKING_MAX) if total_speaking else 0
+        score_listening = round(correct_listening / total_listening * LISTENING_MAX) if total_listening else 0
+        score_choice = round(correct_choice / total_choice * VOCABULARY_MAX) if total_choice else 0
+
+        score_writing = 0
+        writing_pending = False
+        if writing_items:
+            try:
+                evaluator = AIWritingEvaluator()
+                batch_payload = [{'text': it['text'], 'prompt': it['prompt']} for it in writing_items]
+                for attempt in range(2):
+                    try:
+                        results = evaluator.evaluate_batch(batch_payload, nivel_activo.codigo)
+                        avg = round(sum(r['score'] for r in results) / len(results))
+                        score_writing = round(avg / 100 * WRITING_MAX)
+                        break
+                    except AIEvaluationError:
+                        if attempt == 1:
+                            writing_pending = True
+            except EnvironmentError:
+                writing_pending = True
+
+        puntaje = Decimal(score_speaking + score_listening + score_choice + score_writing)
         aprobado = puntaje >= Decimal('80')
-
-        score_speaking = min(correct_speaking * 8, 40)
-        score_listening = min(correct_listening * 8, 40)
-        score_choice = min(correct_choice * 2, 20)
 
         intento = ExamenIntento.objects.create(
             perfil=perfil,
@@ -266,6 +302,8 @@ class ExamStartView(LoginRequiredMixin, View):
             'score_speaking': score_speaking,
             'score_listening': score_listening,
             'score_choice': score_choice,
+            'score_writing': score_writing,
+            'writing_pending': writing_pending,
             'tipo': tipo,
             'nivel_activo': nivel_activo,
             'nivel_siguiente': nivel_siguiente,

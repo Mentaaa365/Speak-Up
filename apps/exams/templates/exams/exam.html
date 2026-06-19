@@ -42,18 +42,25 @@
             <p style="font-size: 14px; color: var(--g500); margin: 4px 0 0 0;">Puntaje total (mínimo 80%)</p>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-            <div style="text-align: center; padding: 16px; background: var(--g100); border-radius: 12px;">
-                <p style="font-size: 12px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Speaking</p>
-                <p style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_speaking }}/40</p>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+            <div style="text-align: center; padding: 14px; background: var(--g100); border-radius: 12px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Speaking</p>
+                <p style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_speaking }}/25</p>
             </div>
-            <div style="text-align: center; padding: 16px; background: var(--g100); border-radius: 12px;">
-                <p style="font-size: 12px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Listening</p>
-                <p style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_listening }}/40</p>
+            <div style="text-align: center; padding: 14px; background: var(--g100); border-radius: 12px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Listening</p>
+                <p style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_listening }}/25</p>
             </div>
-            <div style="text-align: center; padding: 16px; background: var(--g100); border-radius: 12px;">
-                <p style="font-size: 12px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Vocabulario</p>
-                <p style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_choice }}/20</p>
+            <div style="text-align: center; padding: 14px; background: var(--g100); border-radius: 12px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Vocabulario</p>
+                <p style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_choice }}/25</p>
+            </div>
+            <div style="text-align: center; padding: 14px; background: var(--g100); border-radius: 12px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Writing</p>
+                <p style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">{{ score_writing }}/25</p>
+                {% if writing_pending %}
+                <p style="font-size: 10px; color: #D97706; margin: 4px 0 0 0;">⚠️ Pendiente</p>
+                {% endif %}
             </div>
         </div>
     </section>

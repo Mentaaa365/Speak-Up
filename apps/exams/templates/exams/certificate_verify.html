@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="padding: 40px 10px; max-width: 600px; margin: 0 auto;">
+
+    {% if found %}
+    <section style="background: #FFFFFF; border: 2px solid #10B981; border-radius: 16px; padding: 40px 32px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+        <h1 style="font-size: 24px; font-weight: 900; color: #10B981; margin: 0 0 8px 0;">Certificado Válido</h1>
+        <p style="font-size: 14px; color: var(--g500); margin: 0 0 32px 0;">Este certificado fue emitido por SpeakUp y es auténtico.</p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: left;">
+            <div style="padding: 14px; background: var(--g100); border-radius: 10px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Estudiante</p>
+                <p style="font-size: 15px; font-weight: 800; color: var(--g800); margin: 0;">{{ nombre_completo }}</p>
+            </div>
+            <div style="padding: 14px; background: var(--g100); border-radius: 10px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Nivel MCER</p>
+                <p style="font-size: 15px; font-weight: 800; color: var(--g800); margin: 0;">{{ nivel.codigo }}</p>
+            </div>
+            <div style="padding: 14px; background: var(--g100); border-radius: 10px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Institución</p>
+                <p style="font-size: 15px; font-weight: 800; color: var(--g800); margin: 0;">{{ institucion }}</p>
+            </div>
+            <div style="padding: 14px; background: var(--g100); border-radius: 10px;">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Fecha de emisión</p>
+                <p style="font-size: 15px; font-weight: 800; color: var(--g800); margin: 0;">{{ emitido_en|date:"d/m/Y" }}</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding: 14px; background: var(--g100); border-radius: 10px;">
+            <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Puntaje obtenido</p>
+            <p style="font-size: 24px; font-weight: 900; color: #10B981; margin: 0;">{{ puntaje }}%</p>
+        </div>
+    </section>
+
+    {% else %}
+    <section style="background: #FFFFFF; border: 2px solid #EF4444; border-radius: 16px; padding: 40px 32px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 12px;">❌</div>
+        <h1 style="font-size: 24px; font-weight: 900; color: #EF4444; margin: 0 0 8px 0;">Certificado No Encontrado</h1>
+        <p style="font-size: 14px; color: var(--g500); margin: 0;">El código de verificación no corresponde a ningún certificado emitido por SpeakUp.</p>
+    </section>
+    {% endif %}
+
+</div>
+{% endblock content %}

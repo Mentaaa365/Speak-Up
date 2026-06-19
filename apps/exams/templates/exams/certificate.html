@@ -16,8 +16,8 @@
             <header style="text-align: center; margin-bottom: 24px;">
                 <span style="display: inline-block; background: var(--secondary); color: #FFFFFF; font-size: 12px; font-weight: 800; padding: 6px 18px; border-radius: 20px; margin-bottom: 12px; letter-spacing: 0.05em;">CERTIFICADO DIGITAL VERIFICABLE</span>
                 <p style="font-size: 30px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0;">Nivel {{ nivel.codigo }} — MCER</p>
-                <p style="font-size: 22px; font-weight: 700; color: var(--g700); margin: 0 0 6px 0;">{{ request.user.get_full_name|default:request.user.username }}</p>
-                <p style="font-size: 14px; color: var(--g500); margin: 0; font-weight: 600;">UNEMI — Milagro, Ecuador</p>
+                <p style="font-size: 22px; font-weight: 700; color: var(--g700); margin: 0 0 6px 0;">{{ nombre_completo }}</p>
+                <p style="font-size: 14px; color: var(--g500); margin: 0; font-weight: 600;">{{ institucion }}</p>
             </header>
 
             <section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 14px; margin-bottom: 24px;">
@@ -31,7 +31,7 @@
                 </article>
                 <article style="background: rgba(255,255,255,0.7); border-radius: 10px; padding: 12px; text-align: center;">
                     <p style="font-size: 11px; font-weight: 600; color: var(--g500); margin: 0 0 4px 0;">Institución</p>
-                    <p style="font-size: 14px; font-weight: 800; color: var(--g800); margin: 0;">UNEMI</p>
+                    <p style="font-size: 14px; font-weight: 800; color: var(--g800); margin: 0;">{{ institucion }}</p>
                 </article>
                 <article style="background: rgba(255,255,255,0.7); border-radius: 10px; padding: 12px; text-align: center;">
                     <p style="font-size: 11px; font-weight: 600; color: var(--g500); margin: 0 0 4px 0;">Puntaje</p>
@@ -40,26 +40,19 @@
             </section>
 
             <aside style="background: #FFFFFF; border-radius: 12px; padding: 16px; border: 1px solid var(--g200); display: flex; gap: 16px; align-items: center;">
-                <div style="width: 80px; height: 80px; background: var(--g100); border: 1px solid var(--g200); border-radius: 8px; font-size: 36px; text-align: center; line-height: 80px; flex-shrink: 0;">
-                    📱
-                </div>
+                <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR de verificación" style="width: 80px; height: 80px; border-radius: 8px; flex-shrink: 0;">
                 <div>
                     <p style="font-size: 13px; font-weight: 700; color: var(--g700); margin: 0 0 4px 0;">Código QR de verificación</p>
-                    <p style="font-size: 13.5px; font-weight: 700; color: var(--primary); margin: 0 0 4px 0;">speakup.ec/verificar</p>
-                    <p style="font-size: 12px; color: var(--g400); margin: 0; font-weight: 500;">Verifica la autenticidad de este certificado</p>
+                    <p style="font-size: 12px; font-weight: 600; color: var(--primary); margin: 0 0 4px 0; word-break: break-all;">{{ verify_url }}</p>
+                    <p style="font-size: 12px; color: var(--g400); margin: 0; font-weight: 500;">Escanea el QR para verificar la autenticidad</p>
                 </div>
             </aside>
 
         </section>
 
-        <aside style="background: var(--g100); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-            <span style="font-size: 16px;">📄</span>
-            <p style="font-size: 12.5px; color: var(--g600); font-weight: 600; margin: 0;">El certificado se generará automáticamente en PDF.</p>
-        </aside>
-
-        <button style="width: 100%; padding: 13px 20px; border-radius: 9px; border: none; background: var(--secondary); color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 10px; transition: background 0.2s;">
+        <a href="{% url 'exams:download' %}" style="display: block; width: 100%; padding: 13px 20px; border-radius: 9px; border: none; background: var(--secondary); color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 10px; transition: background 0.2s; text-align: center; text-decoration: none; box-sizing: border-box;">
             ⬇️ Descargar certificado PDF
-        </button>
+        </a>
         <a href="{% url 'progress:dashboard' %}" style="display: block; width: 100%; padding: 12px 20px; border-radius: 9px; border: 1.5px solid var(--g300); background: transparent; color: var(--g600); font-size: 14.5px; font-weight: 700; text-align: center; text-decoration: none; box-sizing: border-box; transition: all 0.2s;">
             Ir al Dashboard
         </a>

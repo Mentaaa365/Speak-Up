@@ -1,13 +1,16 @@
+import base64
 import hashlib
+import io
 import json
 import random
 import uuid
 from decimal import Decimal
 
+import qrcode
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -18,6 +21,13 @@ from apps.learning.models import SesionEntrevista
 from apps.progress.models import IntentoEjercicio
 from apps.question_bank.models import Option, Question
 from apps.shared.utils import _similitud
+
+
+def _generate_qr_base64(url):
+    img = qrcode.make(url, box_size=6, border=2)
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
 
 class ExamStartView(LoginRequiredMixin, View):
@@ -275,9 +285,43 @@ class CertificateView(LoginRequiredMixin, View):
         except Certificado.DoesNotExist:
             return redirect(reverse_lazy('progress:dashboard'))
 
+        verify_url = request.build_absolute_uri(
+            reverse('exams:verify', args=[certificado.codigo_hash])
+        )
+
         return render(request, self.template_name, {
             'certificado': certificado,
             'nivel': certificado.nivel,
+            'emitido_en': certificado.emitido_en,
+            'puntaje': certificado.examen.puntaje,
+            'institucion': perfil.institucion or 'No especificada',
+            'nombre_completo': request.user.get_full_name() or request.user.username,
+            'qr_base64': _generate_qr_base64(verify_url),
+            'verify_url': verify_url,
+        })
+
+
+class CertificateVerifyView(View):
+    template_name = 'exams/certificate_verify.html'
+
+    def get(self, request, codigo_hash, *args, **kwargs):
+        try:
+            certificado = Certificado.objects.select_related(
+                'examen__perfil__usuario', 'nivel'
+            ).get(codigo_hash=codigo_hash)
+        except Certificado.DoesNotExist:
+            return render(request, self.template_name, {
+                'found': False,
+            })
+
+        perfil = certificado.examen.perfil
+        usuario = perfil.usuario
+
+        return render(request, self.template_name, {
+            'found': True,
+            'nombre_completo': usuario.get_full_name() or usuario.username,
+            'nivel': certificado.nivel,
+            'institucion': perfil.institucion or 'No especificada',
             'emitido_en': certificado.emitido_en,
             'puntaje': certificado.examen.puntaje,
         })

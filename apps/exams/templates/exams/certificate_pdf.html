@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 20mm;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #1F2937;
+            margin: 0;
+            padding: 0;
+        }
+        .certificate {
+            border: 3px solid #10B981;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+        }
+        .badge {
+            display: inline-block;
+            background: #10B981;
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 6px 20px;
+            border-radius: 20px;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+        }
+        .title {
+            font-size: 28px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+        }
+        .student-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #374151;
+            margin: 0 0 4px 0;
+        }
+        .institution {
+            font-size: 14px;
+            color: #6B7280;
+            font-weight: 600;
+            margin: 0 0 24px 0;
+        }
+        .details {
+            display: table;
+            width: 100%;
+            margin-bottom: 24px;
+        }
+        .detail-item {
+            display: table-cell;
+            text-align: center;
+            padding: 12px;
+            background: #F9FAFB;
+            border-radius: 8px;
+        }
+        .detail-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #6B7280;
+            text-transform: uppercase;
+            margin: 0 0 4px 0;
+        }
+        .detail-value {
+            font-size: 16px;
+            font-weight: 800;
+            color: #1F2937;
+            margin: 0;
+        }
+        .qr-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #E5E7EB;
+        }
+        .qr-section img {
+            width: 120px;
+            height: 120px;
+        }
+        .verify-url {
+            font-size: 10px;
+            color: #6B7280;
+            margin: 8px 0 0 0;
+            word-break: break-all;
+        }
+        .hash {
+            font-size: 9px;
+            color: #9CA3AF;
+            margin: 4px 0 0 0;
+            font-family: monospace;
+        }
+        .footer {
+            margin-top: 24px;
+            font-size: 11px;
+            color: #9CA3AF;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate">
+        <span class="badge">CERTIFICADO DIGITAL VERIFICABLE</span>
+
+        <p class="title">Nivel {{ nivel_codigo }} — Marco Común Europeo de Referencia</p>
+        <p class="student-name">{{ nombre_completo }}</p>
+        <p class="institution">{{ institucion }}</p>
+
+        <div class="details">
+            <div class="detail-item">
+                <p class="detail-label">Fecha de emisión</p>
+                <p class="detail-value">{{ emitido_en }}</p>
+            </div>
+            <div class="detail-item">
+                <p class="detail-label">Nivel certificado</p>
+                <p class="detail-value">{{ nivel_codigo }} MCER</p>
+            </div>
+            <div class="detail-item">
+                <p class="detail-label">Puntaje obtenido</p>
+                <p class="detail-value">{{ puntaje }}%</p>
+            </div>
+        </div>
+
+        <div class="qr-section">
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR de verificación">
+            <p class="verify-url">Verificar en: {{ verify_url }}</p>
+            <p class="hash">SHA-256: {{ codigo_hash }}</p>
+        </div>
+
+        <p class="footer">Emitido por SpeakUp — Sistema Inteligente de Aprendizaje de Inglés</p>
+    </div>
+</body>
+</html>

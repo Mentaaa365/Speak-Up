@@ -7,9 +7,12 @@ import uuid
 from decimal import Decimal
 
 import qrcode
+import weasyprint
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView
@@ -299,6 +302,44 @@ class CertificateView(LoginRequiredMixin, View):
             'qr_base64': _generate_qr_base64(verify_url),
             'verify_url': verify_url,
         })
+
+
+class CertificateDownloadView(LoginRequiredMixin, View):
+
+    def get(self, request, *args, **kwargs):
+        try:
+            perfil = Perfil.objects.get(usuario=request.user)
+        except Perfil.DoesNotExist:
+            return redirect(reverse_lazy('progress:dashboard'))
+
+        try:
+            certificado = Certificado.objects.select_related(
+                'examen', 'nivel'
+            ).get(examen__perfil=perfil)
+        except Certificado.DoesNotExist:
+            return redirect(reverse_lazy('progress:dashboard'))
+
+        verify_url = request.build_absolute_uri(
+            reverse('exams:verify', args=[certificado.codigo_hash])
+        )
+
+        html_string = render_to_string('exams/certificate_pdf.html', {
+            'nombre_completo': request.user.get_full_name() or request.user.username,
+            'nivel_codigo': certificado.nivel.codigo,
+            'institucion': perfil.institucion or 'No especificada',
+            'emitido_en': certificado.emitido_en.strftime('%d/%m/%Y'),
+            'puntaje': certificado.examen.puntaje,
+            'codigo_hash': certificado.codigo_hash,
+            'qr_base64': _generate_qr_base64(verify_url),
+            'verify_url': verify_url,
+        })
+
+        pdf = weasyprint.HTML(string=html_string).write_pdf()
+
+        response = HttpResponse(pdf, content_type='application/pdf')
+        filename = f'certificado_speakup_{certificado.nivel.codigo}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 class CertificateVerifyView(View):

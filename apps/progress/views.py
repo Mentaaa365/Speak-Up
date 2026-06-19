@@ -104,7 +104,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         TIPO_A_NOMBRE = {
             'vocabulario': ('Vocabulario y Lectura',       '📖', reverse_lazy('learning:vocabulary')),
             'musica':      ('Actividades Musicales (LRC)', '🎵', reverse_lazy('learning:music')),
-            'entrevista':  ('Entrevistas Orales con IA',   '🤖', '#'),
+            'entrevista':  ('Entrevistas Orales con IA',   '🤖', reverse_lazy('learning:ai_interview')),
             'writing':     ('Expresión Escrita con IA',    '✍️', reverse_lazy('learning:writing')),
         }
         submodulos_data = []

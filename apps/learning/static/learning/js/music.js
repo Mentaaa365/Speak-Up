@@ -4,23 +4,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const currentSong = CANCIONES[0];
-    document.getElementById('song-title').textContent = currentSong.titulo;
-
     const audioPlayer = document.getElementById('audio-player');
     const lyricsContainer = document.getElementById('lyrics-container');
+    const karaokeBtn = document.getElementById('karaoke-btn');
+    const karaokeStatus = document.getElementById('karaoke-status');
+    const songIndicator = document.getElementById('song-indicator');
+    const songProgress = document.getElementById('song-progress');
+    const btnPrev = document.getElementById('song-prev');
+    const btnNext = document.getElementById('song-next');
 
-    const audioUrl = currentSong.config.audio_url || '';
-    const lrcText = currentSong.config.lrc || '';
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!audioUrl) {
-        lyricsContainer.innerHTML = '<p style="color:red;">Error: Falla el enlace de audio.</p>';
-        return;
-    }
+    let currentSongIndex = 0;
+    const totalSongs = CANCIONES.length;
+    const songsCompleted = new Set();
 
-    audioPlayer.src = audioUrl;
+    let lyricsData = [];
+    let currentLineIndex = -1;
+    let lineScores = new Map();
+    let songSaved = false;
 
-    // ─── 1. PARSEAR EL ARCHIVO LRC ─────────────────────────────────────────
+    // ─── LRC PARSER (preserved from Ian) ───────────────────────────────────
     const parseLRC = (lrc) => {
         const lines = lrc.split('\n');
         const regex = /\[(\d{2}):(\d{2}\.\d{2,3}|\d{2})\](.*)/;
@@ -31,26 +35,112 @@ document.addEventListener('DOMContentLoaded', () => {
                 const minutes = parseInt(match[1], 10);
                 const seconds = parseFloat(match[2]);
                 const text = match[3].trim();
-                parsed.push({ time: minutes * 60 + seconds, text: text });
+                if (text) parsed.push({ time: minutes * 60 + seconds, text: text });
             }
         });
         return parsed;
     };
 
-    const lyricsData = parseLRC(lrcText);
+    // ─── WORD-BY-WORD SCORER (preserved from Ian) ──────────────────────────
+    const score = (transcript, target) => {
+        const cleanT = transcript.toLowerCase().replace(/[.,!?¿¡()]/g, '').trim().split(/\s+/);
+        const cleanA = target.toLowerCase().replace(/[.,!?¿¡()]/g, '').trim().split(/\s+/);
+        let correct = 0;
+        cleanA.forEach((w, i) => { if (cleanT[i] === w) correct++; });
+        return Math.round((correct / cleanA.length) * 100);
+    };
 
-    // ─── 2. RENDERIZAR LAS LÍNEAS ──────────────────────────────────────────
-    if (lyricsData.length > 0) {
-        lyricsContainer.innerHTML = lyricsData.map((line, index) => 
-            `<p id="line-${index}" style="font-size: 20px; color: var(--g400); margin: 12px 0; transition: all 0.3s ease;">
-                ${line.text || '🎵'}
-            </p>`
-        ).join('');
-    }
+    // ─── PROGRESS SAVE (preserved from Ian) ────────────────────────────────
+    const guardarProgreso = (puntaje, transcripcion) => {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        return fetch(GUARDAR_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                ejercicio_id: CANCIONES[currentSongIndex].id,
+                puntaje: puntaje,
+                transcripcion: transcripcion,
+            }),
+        }).then(r => r.json()).catch(err => console.error("Error al guardar:", err));
+    };
 
-    // ─── 3. SINCRONIZAR CON EL AUDIO ───────────────────────────────────────
-    let currentLineIndex = -1;
+    // ─── GLOBAL SCORE COMPUTATION ──────────────────────────────────────────
+    const computeGlobalScore = () => {
+        if (lyricsData.length === 0) return 0;
+        let passed = 0;
+        lineScores.forEach(bestScore => { if (bestScore >= 80) passed++; });
+        return Math.round((passed / lyricsData.length) * 100);
+    };
 
+    const updateProgressUI = () => {
+        let passed = 0;
+        lineScores.forEach(bestScore => { if (bestScore >= 80) passed++; });
+        const globalScore = computeGlobalScore();
+        songProgress.textContent = `Líneas: ${passed}/${lyricsData.length} — ${globalScore}%`;
+    };
+
+    // ─── NAV UI ────────────────────────────────────────────────────────────
+    const updateNavUI = () => {
+        songIndicator.textContent = `Canción ${currentSongIndex + 1} de ${totalSongs}`;
+        btnPrev.disabled = currentSongIndex <= 0;
+        btnPrev.style.opacity = currentSongIndex <= 0 ? '0.4' : '1';
+        btnNext.disabled = currentSongIndex >= totalSongs - 1;
+        btnNext.style.opacity = currentSongIndex >= totalSongs - 1 ? '0.4' : '1';
+    };
+
+    // ─── INIT SONG (teardown/rebuild per song) ─────────────────────────────
+    const initSong = (index) => {
+        currentSongIndex = index;
+        const song = CANCIONES[index];
+
+        document.getElementById('song-title').textContent = song.titulo;
+
+        const audioUrl = song.config.audio_url || '';
+        const lrcText = song.config.lrc || '';
+
+        if (!audioUrl) {
+            lyricsContainer.innerHTML = '<p style="color:red;">Error: Falla el enlace de audio.</p>';
+            return;
+        }
+
+        audioPlayer.pause();
+        audioPlayer.src = audioUrl;
+        audioPlayer.playbackRate = PLAYBACK_RATE;
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            audioPlayer.playbackRate = PLAYBACK_RATE;
+        }, { once: true });
+
+        currentLineIndex = -1;
+        lineScores = new Map();
+        songSaved = songsCompleted.has(song.id);
+
+        lyricsData = parseLRC(lrcText);
+
+        if (lyricsData.length > 0) {
+            lyricsContainer.innerHTML = lyricsData.map((line, i) =>
+                `<p id="line-${i}" style="font-size: 20px; color: var(--g400); margin: 12px 0; transition: all 0.3s ease;">
+                    ${line.text}
+                </p>`
+            ).join('');
+        } else {
+            lyricsContainer.innerHTML = '<p style="color: var(--g500); font-style: italic;">Sin letra disponible.</p>';
+        }
+
+        karaokeStatus.innerHTML = '';
+        if (SpeechRecognition && karaokeBtn) {
+            karaokeBtn.style.display = 'inline-block';
+            karaokeBtn.textContent = '🎤 Practicar línea actual';
+            karaokeBtn.style.background = 'var(--secondary)';
+        }
+
+        updateNavUI();
+        updateProgressUI();
+    };
+
+    // ─── AUDIO SYNC (preserved from Ian) ───────────────────────────────────
     audioPlayer.addEventListener('timeupdate', () => {
         const currentTime = audioPlayer.currentTime;
         let activeIndex = -1;
@@ -65,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeIndex !== currentLineIndex && activeIndex !== -1) {
             if (currentLineIndex !== -1) {
                 const oldLine = document.getElementById(`line-${currentLineIndex}`);
-                if (oldLine) {
+                if (oldLine && !lineScores.has(currentLineIndex)) {
                     oldLine.style.color = 'var(--g400)';
                     oldLine.style.fontWeight = '400';
                     oldLine.style.transform = 'scale(1)';
@@ -74,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const newLine = document.getElementById(`line-${activeIndex}`);
             if (newLine) {
-                newLine.style.color = 'var(--primary)'; // Azul principal
+                newLine.style.color = 'var(--primary)';
                 newLine.style.fontWeight = '800';
                 newLine.style.transform = 'scale(1.1)';
                 newLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -83,45 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ─── 4. MOTOR DE KARAOKE ACTIVO (SISTEMA DE RACHA - 4 LÍNEAS) ──────────
-    const karaokeBtn = document.getElementById('karaoke-btn');
-    const karaokeStatus = document.getElementById('karaoke-status');
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (SpeechRecognition && karaokeBtn) {
-        karaokeBtn.style.display = 'inline-block';
-    } else if (karaokeStatus) {
-        karaokeStatus.textContent = "Tu navegador no soporta evaluación de voz.";
-    }
-
-    const score = (transcript, target) => {
-        const cleanT = transcript.toLowerCase().replace(/[.,!?¿¡()]/g, '').trim().split(/\s+/);
-        const cleanA = target.toLowerCase().replace(/[.,!?¿¡()]/g, '').trim().split(/\s+/);
-        let correct = 0;
-        cleanA.forEach((w, i) => { if (cleanT[i] === w) correct++; });
-        return Math.round((correct / cleanA.length) * 100);
-    };
-
-    const guardarProgreso = (puntaje, transcripcion) => {
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-        fetch(GUARDAR_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-            },
-            body: JSON.stringify({
-                ejercicio_id: currentSong.id,
-                puntaje: puntaje,
-                transcripcion: transcripcion,
-            }),
-        }).then(r => r.json()).catch(err => console.error("Error al guardar:", err));
-    };
-
-    // 🔥 VARIABLES PARA EL SISTEMA DE RACHAS
-    let rachaActual = 0;
-    let ultimaLineaCantada = -1;
-
+    // ─── STT + GLOBAL SCORING ──────────────────────────────────────────────
     if (SpeechRecognition && karaokeBtn) {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
@@ -147,28 +199,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const transcript = event.results[0][0].transcript.trim();
             const lineaObjetivo = lyricsData[currentLineIndex].text;
             const puntaje = score(transcript, lineaObjetivo);
-            const activeLineElement = document.getElementById(`line-${currentLineIndex}`);
-            
+            const lineEl = document.getElementById(`line-${currentLineIndex}`);
+
+            const prev = lineScores.get(currentLineIndex) || 0;
+            lineScores.set(currentLineIndex, Math.max(prev, puntaje));
+
             if (puntaje >= 80) {
-                // Verificar si es la línea inmediatamente siguiente a la anterior
-                if (rachaActual === 0 || currentLineIndex === ultimaLineaCantada + 1) {
-                    rachaActual++;
-                } else if (currentLineIndex !== ultimaLineaCantada) {
-                    // Si saltó a otra parte de la canción, la racha empieza de nuevo en 1
-                    rachaActual = 1; 
-                }
+                if (lineEl) lineEl.style.color = "#10B981";
+                karaokeStatus.innerHTML = `✅ ¡Perfecto! (${puntaje}%)`;
+            } else {
+                if (lineEl) lineEl.style.color = "#F59E0B";
+                karaokeStatus.innerHTML = `⚠️ (${puntaje}%). Dijiste: "${transcript}". Intenta de nuevo.`;
+            }
 
-                ultimaLineaCantada = currentLineIndex;
+            updateProgressUI();
 
-                activeLineElement.style.color = "#10B981"; // Verde
-                karaokeStatus.innerHTML = `✅ ¡Perfecto! (${puntaje}%). <br><span style="color: #F59E0B; font-weight: bold; font-size: 16px;">🔥 Racha: ${rachaActual}/4</span>`;
-                
-                // CONDICIÓN DE VICTORIA
-                if (rachaActual === 4) {
-                    karaokeStatus.innerHTML = `🎉 <strong>¡ESTROFA COMPLETADA!</strong> Has demostrado un excelente dominio.`;
-                    karaokeBtn.style.display = "none"; // Ocultamos el botón
+            const globalScore = computeGlobalScore();
+            if (globalScore >= 80 && !songSaved) {
+                songSaved = true;
+                songsCompleted.add(CANCIONES[currentSongIndex].id);
 
-                    // 1. Disparar explosión de confeti
+                guardarProgreso(globalScore, '').then(response => {
                     confetti({
                         particleCount: 150,
                         spread: 80,
@@ -176,40 +227,33 @@ document.addEventListener('DOMContentLoaded', () => {
                         colors: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444']
                     });
 
-                    // 2. Mostrar la alerta animada y moderna
+                    const isLastSong = songsCompleted.size >= totalSongs;
+                    const isSubmoduleComplete = response && response.submodulo_completado;
+
                     Swal.fire({
-                        title: '¡Módulo Superado! 🏆',
-                        text: '¡Cantaste una estrofa completa a la perfección!',
+                        title: isSubmoduleComplete ? '¡Submódulo Completado! 🏆' : '¡Canción Superada! 🎉',
+                        text: isSubmoduleComplete
+                            ? '¡Completaste todas las canciones de este nivel!'
+                            : `Puntaje: ${globalScore}%. ${totalSongs - songsCompleted.size} canción(es) restante(s).`,
                         icon: 'success',
-                        confirmButtonText: 'Volver al Dashboard',
-                        confirmButtonColor: '#4F46E5', // Tu color azul principal
-                        background: '#ffffff',
-                        backdrop: `rgba(0,0,10,0.4)`, // Fondo oscuro elegante
-                        allowOutsideClick: false, // Obliga a darle al botón
-                        showClass: {
-                            popup: 'animate__animated animate__bounceIn'
-                        }
+                        confirmButtonText: isSubmoduleComplete ? 'Volver al Dashboard' : 'Siguiente canción',
+                        confirmButtonColor: '#4F46E5',
+                        allowOutsideClick: false,
                     }).then((result) => {
-                        // 3. Redirigir al dashboard cuando hagan clic en el botón
                         if (result.isConfirmed) {
-                            window.location.href = DASHBOARD_URL;
+                            if (isSubmoduleComplete) {
+                                window.location.href = DASHBOARD_URL;
+                            } else {
+                                const next = findNextIncomplete();
+                                if (next !== -1) initSong(next);
+                            }
                         }
                     });
-                }
-
-            } else {
-                // Si falla el 80%, la racha muere
-                rachaActual = 0;
-                activeLineElement.style.color = "#F59E0B"; // Naranja
-                karaokeStatus.innerHTML = `⚠️ Fallaste (${puntaje}%). Dijiste: "${transcript}". <br><span style="color: red; font-weight: bold;">❌ Racha perdida. Vuelve a empezar.</span>`;
+                });
             }
 
-            guardarProgreso(puntaje, transcript);
-            
-            if (rachaActual < 4) {
-                karaokeBtn.textContent = "🎤 Practicar línea actual";
-                karaokeBtn.style.background = "var(--secondary)";
-            }
+            karaokeBtn.textContent = "🎤 Practicar línea actual";
+            karaokeBtn.style.background = "var(--secondary)";
         };
 
         recognition.onerror = (e) => {
@@ -217,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
             karaokeBtn.textContent = "🎤 Practicar línea actual";
             karaokeBtn.style.background = "var(--secondary)";
         };
-        
+
         recognition.onend = () => {
             if (karaokeBtn.textContent.includes("Escuchando")) {
                 karaokeBtn.textContent = "🎤 Practicar línea actual";
@@ -225,5 +269,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 karaokeStatus.textContent = "No se escuchó nada. Intenta de nuevo.";
             }
         };
+    } else if (karaokeStatus) {
+        karaokeStatus.textContent = "Tu navegador no soporta evaluación de voz.";
     }
+
+    // ─── SONG NAVIGATION ───────────────────────────────────────────────────
+    const findNextIncomplete = () => {
+        for (let i = 0; i < totalSongs; i++) {
+            if (!songsCompleted.has(CANCIONES[i].id)) return i;
+        }
+        return -1;
+    };
+
+    btnPrev.addEventListener('click', () => {
+        if (currentSongIndex > 0) initSong(currentSongIndex - 1);
+    });
+
+    btnNext.addEventListener('click', () => {
+        if (currentSongIndex < totalSongs - 1) initSong(currentSongIndex + 1);
+    });
+
+    // ─── BOOT ──────────────────────────────────────────────────────────────
+    initSong(0);
 });

@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from apps.curriculum.models import Ejercicio, NivelMCER, Submodulo
+from apps.question_bank.models import Question
 
 NIVELES = [
     {"codigo": "A1", "orden": 1, "parametros_json": {"nombre_descriptivo": "Principiante (A1)"}},
@@ -12,6 +13,7 @@ SUBMODULO_TIPOS = [
     ("vocabulario", 1),
     ("musica", 2),
     ("entrevista", 3),
+    ("writing", 4),
 ]
 
 MUSIC_EXERCISES = {
@@ -67,13 +69,45 @@ MUSIC_EXERCISES = {
 }
 
 
+WRITING_EXERCISES = {
+    "A1": [
+        "Describe your family in 2-3 simple sentences.",
+        "Write about what you do every day.",
+    ],
+    "A2": [
+        "Describe your last vacation. Where did you go and what did you do?",
+        "Write about your favorite hobby and explain why you enjoy it.",
+    ],
+    "B1": [
+        "Write an essay about the advantages and disadvantages of social media for students.",
+        "Describe a challenge you overcame and explain what you learned from the experience.",
+    ],
+}
+
+WRITING_QUESTIONS = {
+    "A1": [
+        "Write 2-3 sentences introducing yourself: your name, age, and where you live.",
+        "Describe your favorite food in simple sentences.",
+    ],
+    "A2": [
+        "Write a short paragraph about your best friend and what you like to do together.",
+        "Describe what you did last weekend in 3-5 sentences.",
+    ],
+    "B1": [
+        "Write a paragraph explaining why learning English is important for your future.",
+        "Describe a place you would like to visit and explain why it interests you.",
+    ],
+}
+
+
 class Command(BaseCommand):
-    help = "Seed NivelMCER, Submodulos, and music Ejercicios for all levels"
+    help = "Seed NivelMCER, Submodulos, Ejercicios, and WRITING questions for all levels"
 
     def handle(self, *args, **options):
         created_niveles = 0
         created_submodulos = 0
         created_ejercicios = 0
+        created_questions = 0
 
         for nivel_data in NIVELES:
             nivel, created = NivelMCER.objects.get_or_create(
@@ -108,13 +142,39 @@ class Command(BaseCommand):
                 if ej_created:
                     created_ejercicios += 1
 
+            writing_sub = Submodulo.objects.get(nivel=nivel, tipo="writing")
+            for prompt in WRITING_EXERCISES.get(nivel_data["codigo"], []):
+                _, ej_created = Ejercicio.objects.get_or_create(
+                    submodulo=writing_sub,
+                    texto_objetivo=prompt,
+                    defaults={
+                        "nivel_dificultad": nivel_data["codigo"],
+                        "contenido_json": {},
+                    },
+                )
+                if ej_created:
+                    created_ejercicios += 1
+
+            for prompt in WRITING_QUESTIONS.get(nivel_data["codigo"], []):
+                for bank_ctx in ("DIAGNOSTIC", "PROMOTION_EXAM"):
+                    _, q_created = Question.objects.get_or_create(
+                        level=nivel_data["codigo"],
+                        question_type="WRITING",
+                        bank_context=bank_ctx,
+                        text=prompt,
+                    )
+                    if q_created:
+                        created_questions += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Seed complete: {created_niveles} niveles, "
             f"{created_submodulos} submodulos, "
-            f"{created_ejercicios} ejercicios created"
+            f"{created_ejercicios} ejercicios, "
+            f"{created_questions} questions created"
         ))
         self.stdout.write(
             f"Totals: {NivelMCER.objects.count()} niveles, "
             f"{Submodulo.objects.count()} submodulos, "
-            f"{Ejercicio.objects.filter(submodulo__tipo='musica').count()} music ejercicios"
+            f"{Ejercicio.objects.count()} ejercicios, "
+            f"{Question.objects.filter(question_type='WRITING').count()} writing questions"
         )

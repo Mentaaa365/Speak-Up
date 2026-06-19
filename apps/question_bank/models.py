@@ -16,6 +16,7 @@ class Question(models.Model):
         ('CHOICE', 'Gramática/Vocabulario (Opción Múltiple)'),
         ('LISTENING', 'Comprensión Auditiva (Motor TTS)'),
         ('SPEAKING', 'Pronunciación (Motor STT)'),
+        ('WRITING', 'Expresión Escrita (Evaluación IA)'),
     ]
 
     BANK_CONTEXT_CHOICES = [

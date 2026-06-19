@@ -226,6 +226,15 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
         context['ejercicios_exitosos'] = ejercicios_exitosos
         context['total_ejercicios']    = total_ejercicios
 
+        from apps.learning.models import SesionEntrevista
+        context['entrevistas_completadas'] = SesionEntrevista.objects.filter(
+            perfil=perfil, estado='COMPLETADA', puntaje__gte=80,
+        ).count()
+        context['niveles_completados'] = NivelMCER.objects.filter(
+            orden__lt=nivel_activo.orden,
+        ).count()
+        context['total_niveles'] = NivelMCER.objects.count()
+
         # ── Barra 2: Por nivel MCER ───────────────────────────────────────────
         niveles_db   = NivelMCER.objects.all().order_by('orden')
         niveles_data = []

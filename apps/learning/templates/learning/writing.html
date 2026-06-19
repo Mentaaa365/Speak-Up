@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="padding: 40px; max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">✍️ Expresión Escrita</h1>
+        <a href="{% url 'progress:dashboard' %}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Volver al Dashboard</a>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <span id="exercise-indicator" style="font-size: 14px; font-weight: 700; color: var(--g600);">Ejercicio 1 de 1</span>
+        <span style="font-size: 13px; font-weight: 600; color: var(--g500);">Nivel {{ nivel_codigo }}</span>
+    </div>
+
+    <div id="prompt-container" style="background: var(--primary-light); border: 1px solid #E0E7FF; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <p style="font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; margin: 0 0 8px 0;">Writing Prompt</p>
+        <p id="prompt-text" style="font-size: 16px; font-weight: 600; color: var(--g800); margin: 0; line-height: 1.5;">Loading...</p>
+    </div>
+
+    <textarea id="writing-input" rows="8" placeholder="Write your answer in English..."
+        style="width: 100%; padding: 16px; border: 2px solid var(--g200); border-radius: 12px; font-size: 15px; font-family: inherit; resize: vertical; box-sizing: border-box; margin-bottom: 16px;"></textarea>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <button id="btn-submit" style="padding: 12px 28px; border-radius: 10px; border: none; background: var(--primary); color: #FFFFFF; font-weight: 700; cursor: pointer; font-size: 15px;">
+            Evaluar respuesta
+        </button>
+        <button id="btn-next" style="padding: 12px 28px; border-radius: 10px; border: none; background: var(--secondary); color: #FFFFFF; font-weight: 700; cursor: pointer; font-size: 15px; display: none;">
+            Siguiente ejercicio →
+        </button>
+    </div>
+
+    <div id="feedback-panel" style="display: none; background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 24px;">
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--g800); margin: 0 0 16px 0;">Resultado de la evaluación</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+            <div style="text-align: center; padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--g200);">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Grammar</p>
+                <p id="score-grammar" style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">-</p>
+            </div>
+            <div style="text-align: center; padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--g200);">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Coherence</p>
+                <p id="score-coherence" style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">-</p>
+            </div>
+            <div style="text-align: center; padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--g200);">
+                <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Vocabulary</p>
+                <p id="score-vocabulary" style="font-size: 22px; font-weight: 800; color: var(--g800); margin: 0;">-</p>
+            </div>
+        </div>
+        <div id="score-total-bar" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="font-size: 13px; font-weight: 700; color: var(--g600);">Puntaje global</span>
+                <span id="score-total" style="font-size: 13px; font-weight: 800; color: var(--g800);">-</span>
+            </div>
+            <div style="height: 8px; background: var(--g200); border-radius: 4px; overflow: hidden;">
+                <div id="score-bar" style="height: 100%; width: 0%; border-radius: 4px; transition: width 0.5s ease;"></div>
+            </div>
+        </div>
+        <div id="suggestions-container" style="background: white; border-radius: 10px; padding: 14px; border: 1px solid var(--g200);">
+            <p style="font-size: 12px; font-weight: 700; color: var(--g500); margin: 0 0 6px 0; text-transform: uppercase;">Suggestions</p>
+            <p id="suggestions-text" style="font-size: 14px; color: var(--g700); margin: 0; line-height: 1.5;">-</p>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+<script>
+    const EJERCICIOS = JSON.parse('{{ ejercicios_json|escapejs }}');
+    const EVALUAR_URL = "{% url 'learning:writing_evaluar' %}";
+    const DASHBOARD_URL = "{% url 'progress:dashboard' %}";
+</script>
+<script src="{% static 'learning/js/writing.js' %}"></script>
+{% endblock content %}

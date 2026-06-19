@@ -105,6 +105,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             'vocabulario': ('Vocabulario y Lectura',       '📖', reverse_lazy('learning:vocabulary')),
             'musica':      ('Actividades Musicales (LRC)', '🎵', reverse_lazy('learning:music')),
             'entrevista':  ('Entrevistas Orales con IA',   '🤖', '#'),
+            'writing':     ('Expresión Escrita con IA',    '✍️', reverse_lazy('learning:writing')),
         }
         submodulos_data = []
 
@@ -260,6 +261,7 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
             'vocabulario': ('Vocabulario y Lectura',       '📖'),
             'musica':      ('Actividades Musicales (LRC)', '🎵'),
             'entrevista':  ('Entrevistas Orales con IA',   '🤖'),
+            'writing':     ('Expresión Escrita con IA',    '✍️'),
         }
         submodulos_data = []
 

@@ -13,9 +13,9 @@ from apps.authentication.models import Perfil
 from apps.curriculum.models import Ejercicio, Submodulo
 from apps.learning.ai_client import AIInterviewClient
 from apps.learning.models import SesionEntrevista
-from apps.shared.utils import _submodulo_completado
-# Agrega estas líneas en la parte superior junto a tus otros imports
+from apps.learning.writing_evaluator import AIEvaluationError, AIWritingEvaluator
 from apps.progress.models import IntentoEjercicio
+from apps.shared.utils import _submodulo_completado
 
 
 
@@ -295,6 +295,94 @@ class FinalizarEntrevistaView(LoginRequiredMixin, View):
             'submodulo_completado': submodulo_completado,
         })
     
+
+class WritingLearningView(LoginRequiredMixin, View):
+    template_name = 'learning/writing.html'
+
+    def get(self, request, *args, **kwargs):
+        try:
+            perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
+        except Perfil.DoesNotExist:
+            return redirect('authentication:login')
+
+        submodulo = Submodulo.objects.filter(
+            nivel=perfil.nivel_mcer, tipo='writing'
+        ).first()
+        if submodulo is None:
+            return redirect('progress:dashboard')
+
+        ejercicios_qs = submodulo.ejercicios.all()
+
+        context = {
+            'submodulo': submodulo,
+            'ejercicios_json': json.dumps([
+                {'id': e.pk, 'prompt': e.texto_objetivo}
+                for e in ejercicios_qs
+            ]),
+            'nivel_codigo': perfil.nivel_mcer.codigo,
+        }
+        return render(request, self.template_name, context)
+
+
+class EvaluarEscrituraView(LoginRequiredMixin, View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        try:
+            body = json.loads(request.body)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        ejercicio_id = body.get('ejercicio_id')
+        texto = (body.get('texto') or '').strip()
+
+        if not ejercicio_id or not texto:
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
+        ejercicio = Ejercicio.objects.select_related('submodulo__nivel').filter(pk=ejercicio_id).first()
+
+        if ejercicio is None:
+            return JsonResponse({'error': 'not_found'}, status=404)
+        if ejercicio.submodulo.nivel != perfil.nivel_mcer:
+            return JsonResponse({'error': 'level_mismatch'}, status=403)
+
+        IntentoEjercicio.objects.filter(
+            perfil=perfil, ejercicio=ejercicio, activo=True
+        ).update(activo=False)
+
+        try:
+            evaluator = AIWritingEvaluator()
+            result = evaluator.evaluate(texto, perfil.nivel_mcer.codigo, ejercicio.texto_objetivo)
+            puntaje = result['score']
+            intento = IntentoEjercicio.objects.create(
+                perfil=perfil, ejercicio=ejercicio,
+                puntaje=puntaje, activo=True, transcripcion=texto,
+            )
+            completado = _submodulo_completado(perfil, ejercicio.submodulo)
+            return JsonResponse({
+                'pending': False,
+                'aprobado': puntaje >= 80,
+                'puntaje': puntaje,
+                'grammar': result['grammar'],
+                'coherence': result['coherence'],
+                'vocabulary': result['vocabulary'],
+                'suggestions': result['suggestions'],
+                'submodulo_completado': completado,
+            })
+        except AIEvaluationError:
+            IntentoEjercicio.objects.create(
+                perfil=perfil, ejercicio=ejercicio,
+                puntaje=None, activo=True, transcripcion=texto,
+            )
+            return JsonResponse({
+                'pending': True,
+                'aprobado': False,
+                'puntaje': 0,
+                'suggestions': 'Evaluación pendiente. Puedes reintentar más tarde.',
+                'submodulo_completado': False,
+            })
+
 
 class MiNivelRouterView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):

@@ -8,6 +8,7 @@ from apps.shared.utils import (
     _parse_lrc_lines,
     _score_musica,
     _score_palabra_por_palabra,
+    _seleccionar_blanks,
     _submodulo_completado,
 )
 
@@ -158,6 +159,50 @@ class ScoreMusicaTests(SimpleTestCase):
             "99": "ghost line",
         }
         self.assertEqual(_score_musica(transcriptions, self.SAMPLE_LRC), 100)
+
+
+class SeleccionarBlanksTests(SimpleTestCase):
+    """_seleccionar_blanks — picks content-word indices to hide per MCER level."""
+
+    def test_a1_hides_one_word(self):
+        indices = _seleccionar_blanks("Hello how are you", "A1")
+        self.assertEqual(len(indices), 1)
+
+    def test_a2_hides_two_words(self):
+        indices = _seleccionar_blanks("I have breakfast with my family", "A2")
+        self.assertEqual(len(indices), 2)
+
+    def test_b1_hides_three_words(self):
+        indices = _seleccionar_blanks("I have always wanted to travel the world", "B1")
+        self.assertEqual(len(indices), 3)
+
+    def test_never_hides_stop_words(self):
+        for _ in range(20):
+            indices = _seleccionar_blanks("I am the cat", "A1")
+            words = "I am the cat".split()
+            for idx in indices:
+                self.assertNotIn(words[idx].lower(), {
+                    'i', 'a', 'am', 'the', 'is', 'to', 'in', 'on', 'at',
+                })
+
+    def test_returns_sorted_indices(self):
+        indices = _seleccionar_blanks("The quick brown fox jumps over", "A2")
+        self.assertEqual(indices, sorted(indices))
+
+    def test_caps_at_available_content_words(self):
+        # "I am" has 0 content words (both are stop words)
+        indices = _seleccionar_blanks("I am", "B1")
+        self.assertEqual(len(indices), 0)
+
+    def test_short_line_caps_naturally(self):
+        # "cat" has 1 content word — A2 asks for 2 but only 1 is available
+        indices = _seleccionar_blanks("cat", "A2")
+        self.assertEqual(len(indices), 1)
+
+    def test_returns_integer_indices(self):
+        indices = _seleccionar_blanks("Hello world", "A1")
+        for idx in indices:
+            self.assertIsInstance(idx, int)
 
 
 class SubmoduloCompletadoTests(TestCase):

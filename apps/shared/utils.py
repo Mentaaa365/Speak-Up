@@ -1,8 +1,19 @@
+import random
 import re
 from difflib import SequenceMatcher
 
 _PUNCTUATION_RE = re.compile(r'[.,!?¿¡()]')
 _LRC_LINE_RE = re.compile(r'\[(\d{2}):(\d{2}\.\d{2,3}|\d{2})\](.*)')
+
+_STOP_WORDS = frozenset({
+    'i', 'a', 'an', 'the', 'is', 'am', 'are', 'was', 'were',
+    'to', 'in', 'on', 'at', 'by', 'for', 'of', 'and', 'or',
+    'but', 'my', 'your', 'he', 'she', 'it', 'we', 'they',
+    'do', 'does', 'did', 'not', 'no', 'so', 'up', 'with',
+    'have', 'has', 'had', 'be', 'been', 'will', 'can',
+})
+
+_BLANKS_PER_LEVEL = {'A1': 1, 'A2': 2, 'B1': 3}
 
 
 def _score_palabra_por_palabra(transcripcion: str, objetivo: str) -> int:
@@ -65,6 +76,19 @@ def _score_musica(line_transcriptions: dict, lrc_text: str) -> int:
         ) >= 80
     )
     return round((passed / len(lines)) * 100)
+
+
+def _seleccionar_blanks(texto: str, nivel: str) -> list[int]:
+    """Return sorted word indices to hide as blanks for a fill-in-blank exercise.
+
+    Selects N content words (non-stop-words) per MCER level. Both this
+    function and the JS equivalent in music.js use the same STOP_WORDS
+    set and level config. If you change the list here, update music.js.
+    """
+    words = texto.split()
+    content_indices = [i for i, w in enumerate(words) if w.lower() not in _STOP_WORDS]
+    n = min(_BLANKS_PER_LEVEL.get(nivel, 1), len(content_indices))
+    return sorted(random.sample(content_indices, n)) if n > 0 else []
 
 
 def _similitud(a: str, b: str) -> float:

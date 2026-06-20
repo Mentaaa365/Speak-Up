@@ -42,6 +42,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return parsed;
     };
 
+    // ─── FILL-IN-BLANKS — select content-word indices to hide (RF-04)
+    // Mirrors shared/utils.py _seleccionar_blanks(). If you change the
+    // STOP_WORDS set or BLANKS_PER_LEVEL here, update the Python version.
+    const STOP_WORDS = new Set([
+        'i', 'a', 'an', 'the', 'is', 'am', 'are', 'was', 'were',
+        'to', 'in', 'on', 'at', 'by', 'for', 'of', 'and', 'or',
+        'but', 'my', 'your', 'he', 'she', 'it', 'we', 'they',
+        'do', 'does', 'did', 'not', 'no', 'so', 'up', 'with',
+        'have', 'has', 'had', 'be', 'been', 'will', 'can',
+    ]);
+    const BLANKS_PER_LEVEL = { A1: 1, A2: 2, B1: 3 };
+
+    const selectBlanks = (text, nivel) => {
+        const words = text.split(/\s+/);
+        const content = [];
+        words.forEach((w, i) => { if (!STOP_WORDS.has(w.toLowerCase())) content.push(i); });
+        const n = Math.min(BLANKS_PER_LEVEL[nivel] || 1, content.length);
+        const shuffled = content.sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, n).sort((a, b) => a - b);
+    };
+
+    const renderWithBlanks = (text, blankIndices) => {
+        const words = text.split(/\s+/);
+        return words.map((w, i) => blankIndices.includes(i) ? '___' : w).join(' ');
+    };
+
     // ─── WORD-BY-WORD SCORER (preserved from Ian) ──────────────────────────
     const score = (transcript, target) => {
         const cleanT = transcript.toLowerCase().replace(/[.,!?¿¡()]/g, '').trim().split(/\s+/);
@@ -125,11 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
         songSaved = songsCompleted.has(song.id);
 
         lyricsData = parseLRC(lrcText);
+        lyricsData.forEach(line => { line.blanks = selectBlanks(line.text, NIVEL); });
 
         if (lyricsData.length > 0) {
             lyricsContainer.innerHTML = lyricsData.map((line, i) =>
                 `<p id="line-${i}" style="font-size: 20px; color: var(--g400); margin: 12px 0; transition: all 0.3s ease;">
-                    ${line.text}
+                    ${renderWithBlanks(line.text, line.blanks)}
                 </p>`
             ).join('');
         } else {
@@ -177,6 +204,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 newLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             currentLineIndex = activeIndex;
+
+            if (lyricsData[activeIndex].blanks.length > 0 && !lineScores.has(activeIndex)) {
+                audioPlayer.pause();
+                karaokeStatus.innerHTML = `🎤 Pronunciá la línea completa (incluí las palabras ocultas)`;
+            }
         }
     });
 
@@ -217,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (puntaje >= 80) {
                 if (lineEl) { lineEl.style.color = "#10B981"; lineEl.textContent = "✓ " + lineaObjetivo; }
                 karaokeStatus.innerHTML = `✅ ¡Perfecto! (${puntaje}%)`;
+                if (audioPlayer.paused) audioPlayer.play();
             } else {
                 if (lineEl) { lineEl.style.color = "#F59E0B"; lineEl.textContent = "✗ " + lineaObjetivo; }
                 karaokeStatus.innerHTML = `⚠️ (${puntaje}%). Dijiste: "${transcript}". Intenta de nuevo.`;

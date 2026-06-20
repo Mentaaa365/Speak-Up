@@ -32,7 +32,7 @@ class AIWritingEvaluator:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise EnvironmentError("ANTHROPIC_API_KEY is not set")
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
 
     def _call(self, system, messages, max_tokens=800):
         response = self._client.messages.create(

@@ -15,6 +15,8 @@ import os
 
 import anthropic
 
+from apps.learning.writing_evaluator import AIEvaluationError
+
 MODEL = "claude-haiku-4-5"
 SPANISH_REDIRECT = "Please try in English."
 
@@ -32,7 +34,7 @@ class AIInterviewClient:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise EnvironmentError("ANTHROPIC_API_KEY is not set")
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -115,20 +117,21 @@ class AIInterviewClient:
         transcript = "\n".join(
             f"{m['role']}: {m['content']}" for m in historial_completo
         )
-        raw = self._call(system, [{"role": "user", "content": transcript}], max_tokens=400)
+        try:
+            raw = self._call(system, [{"role": "user", "content": transcript}], max_tokens=400)
 
-        # Strip markdown code fences if the LLM wrapped the JSON
-        raw = raw.strip()
-        if raw.startswith("```"):
-            parts = raw.split("```")
-            # parts[1] is the code block content, possibly prefixed with 'json\n'
-            inner = parts[1]
-            if inner.startswith("json"):
-                inner = inner[4:]
-            raw = inner.strip()
+            raw = raw.strip()
+            if raw.startswith("```"):
+                parts = raw.split("```")
+                inner = parts[1]
+                if inner.startswith("json"):
+                    inner = inner[4:]
+                raw = inner.strip()
 
-        scores = json.loads(raw)
-        numeric = [int(scores[c]) for c in cats]
-        puntaje_global = round(sum(numeric) / len(numeric))
+            scores = json.loads(raw)
+            numeric = [int(scores[c]) for c in cats]
+            puntaje_global = round(sum(numeric) / len(numeric))
 
-        return {"scores": scores, "puntaje_global": puntaje_global}
+            return {"scores": scores, "puntaje_global": puntaje_global}
+        except Exception as exc:
+            raise AIEvaluationError(f"Interview evaluation failed: {exc}") from exc

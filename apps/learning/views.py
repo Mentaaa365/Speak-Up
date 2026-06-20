@@ -276,7 +276,11 @@ class FinalizarEntrevistaView(LoginRequiredMixin, View):
 
         nivel_codigo = perfil.nivel_mcer.codigo
         client = AIInterviewClient()
-        resultado = client.evaluate_session(nivel_codigo, historial)
+
+        try:
+            resultado = client.evaluate_session(nivel_codigo, historial)
+        except AIEvaluationError:
+            return JsonResponse({'error': 'evaluation_failed'}, status=502)
 
         puntaje = Decimal(str(resultado['puntaje_global']))
         aprobado = puntaje >= 80

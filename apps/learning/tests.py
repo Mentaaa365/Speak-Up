@@ -394,9 +394,10 @@ class EvaluateSessionTests(TestCase):
         # mean of 5 numeric = 80; sugerencias_mejora must be excluded
         self.assertEqual(result["puntaje_global"], 80)
 
-    def test_api_error_propagates(self):
-        """SDK exception in evaluate_session propagates; no score is silently swallowed."""
+    def test_api_error_propagates_as_ai_evaluation_error(self):
+        """SDK exception in evaluate_session wraps as AIEvaluationError."""
         import os
+        from apps.learning.writing_evaluator import AIEvaluationError
 
         mock_client = MagicMock()
         mock_client.messages.create.side_effect = RuntimeError("timeout")
@@ -406,8 +407,27 @@ class EvaluateSessionTests(TestCase):
                 from apps.learning.ai_client import AIInterviewClient
                 client = AIInterviewClient()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(AIEvaluationError):
             client.evaluate_session("A1", self._historial())
+
+    def test_malformed_json_raises_ai_evaluation_error(self):
+        """evaluate_session wraps malformed JSON as AIEvaluationError."""
+        from apps.learning.writing_evaluator import AIEvaluationError
+
+        client, _ = self._client_with_mock("Sure! Here are the scores in a nice format...")
+        with self.assertRaises(AIEvaluationError):
+            client.evaluate_session("A1", self._historial())
+
+    def test_constructor_passes_timeout_to_anthropic(self):
+        """Anthropic client is instantiated with a timeout parameter."""
+        import os
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch("apps.learning.ai_client.anthropic.Anthropic") as mock_cls:
+                from apps.learning.ai_client import AIInterviewClient
+                AIInterviewClient()
+                call_kwargs = mock_cls.call_args
+                self.assertIn("timeout", call_kwargs.kwargs)
+                self.assertGreater(call_kwargs.kwargs["timeout"], 0)
 
 
 class PromptBuilderTests(TestCase):
@@ -962,6 +982,25 @@ class FinalizarEntrevistaViewTests(TestCase):
         """POST without authentication returns HTTP 302."""
         response = self._post({"sesion_id": self.sesion.pk})
         self.assertEqual(response.status_code, 302)
+
+    # ------------------------------------------------------------------
+    # 10. AI evaluation failure -> 502 with error key, session stays EN_CURSO
+    # ------------------------------------------------------------------
+
+    @patch("apps.learning.views.AIInterviewClient")
+    def test_ai_evaluation_error_returns_502_session_stays_en_curso(self, mock_client_cls):
+        """AIEvaluationError -> 502 JSON, session not marked COMPLETADA."""
+        from apps.learning.writing_evaluator import AIEvaluationError
+
+        mock_client = mock_client_cls.return_value
+        mock_client.evaluate_session.side_effect = AIEvaluationError("bad json")
+        self.client.force_login(self.user)
+        response = self._post({"sesion_id": self.sesion.pk})
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("error", response.json())
+
+        self.sesion.refresh_from_db()
+        self.assertEqual(self.sesion.estado, "EN_CURSO")
 
 
 class MiNivelRouterViewTests(TestCase):

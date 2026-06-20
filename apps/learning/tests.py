@@ -962,3 +962,81 @@ class FinalizarEntrevistaViewTests(TestCase):
         """POST without authentication returns HTTP 302."""
         response = self._post({"sesion_id": self.sesion.pk})
         self.assertEqual(response.status_code, 302)
+
+
+class MiNivelRouterViewTests(TestCase):
+    """B3: MiNivelRouterView must check ALL submodule types, not just vocab and music."""
+
+    def setUp(self):
+        self.url = reverse("learning:router_nivel")
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=1, parametros_json={})
+        self.sub_vocab = Submodulo.objects.create(nivel=self.nivel, tipo="vocabulario", orden=1)
+        self.sub_music = Submodulo.objects.create(nivel=self.nivel, tipo="musica", orden=2)
+        self.sub_interview = Submodulo.objects.create(nivel=self.nivel, tipo="entrevista", orden=3)
+        self.sub_writing = Submodulo.objects.create(nivel=self.nivel, tipo="writing", orden=4)
+
+        self.user = User.objects.create_user(
+            username="router@example.com", email="router@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.client.force_login(self.user)
+
+    def _make_ejercicio(self, submodulo, texto="word"):
+        return Ejercicio.objects.create(
+            submodulo=submodulo, contenido_json={},
+            nivel_dificultad="A1", texto_objetivo=texto,
+        )
+
+    def _pass_ejercicio(self, ejercicio):
+        IntentoEjercicio.objects.create(
+            perfil=self.perfil, ejercicio=ejercicio, puntaje=90, activo=True,
+        )
+
+    def _pass_interview(self):
+        SesionEntrevista.objects.create(
+            perfil=self.perfil, submodulo=self.sub_interview,
+            estado="COMPLETADA", puntaje=85,
+        )
+
+    def test_nothing_done_redirects_to_vocabulary(self):
+        self._make_ejercicio(self.sub_vocab)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("learning:vocabulary"), fetch_redirect_response=False)
+
+    def test_vocab_done_redirects_to_music(self):
+        ej = self._make_ejercicio(self.sub_vocab)
+        self._pass_ejercicio(ej)
+        self._make_ejercicio(self.sub_music)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("learning:music"), fetch_redirect_response=False)
+
+    def test_vocab_music_done_redirects_to_interview(self):
+        ej_v = self._make_ejercicio(self.sub_vocab)
+        self._pass_ejercicio(ej_v)
+        ej_m = self._make_ejercicio(self.sub_music)
+        self._pass_ejercicio(ej_m)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("learning:ai_interview"), fetch_redirect_response=False)
+
+    def test_vocab_music_interview_done_redirects_to_writing(self):
+        ej_v = self._make_ejercicio(self.sub_vocab)
+        self._pass_ejercicio(ej_v)
+        ej_m = self._make_ejercicio(self.sub_music)
+        self._pass_ejercicio(ej_m)
+        self._pass_interview()
+        self._make_ejercicio(self.sub_writing)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("learning:writing"), fetch_redirect_response=False)
+
+    def test_all_done_redirects_to_dashboard(self):
+        ej_v = self._make_ejercicio(self.sub_vocab)
+        self._pass_ejercicio(ej_v)
+        ej_m = self._make_ejercicio(self.sub_music)
+        self._pass_ejercicio(ej_m)
+        self._pass_interview()
+        ej_w = self._make_ejercicio(self.sub_writing)
+        self._pass_ejercicio(ej_w)
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("progress:dashboard"), fetch_redirect_response=False)

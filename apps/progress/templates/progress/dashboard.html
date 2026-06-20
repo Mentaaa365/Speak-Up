@@ -33,7 +33,7 @@
                         <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px; border-left: 4px solid var(--secondary);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                 <span style="font-size: 14px; font-weight: 700; color: var(--g800);">Nivel {{ nivel.codigo }}: {{ nivel.nombre }} ✓</span>
-                                <span style="font-size: 12.5px; font-weight: 600; color: var(--g500);">{{ nivel.sub_completados }} de 3 Submódulos</span>
+                                <span style="font-size: 12.5px; font-weight: 600; color: var(--g500);">{{ nivel.sub_completados }} de {{ nivel.total_subs }} Submódulos</span>
                             </div>
                             <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
                                 <div style="width: 100%; height: 100%; background: var(--secondary); transition: width 0.5s ease;"></div>
@@ -44,7 +44,7 @@
                         <div style="background: #FFFFFF; border: 1.5px solid var(--primary-light); border-radius: 12px; padding: 16px; border-left: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(79,70,229,0.04);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                                 <span style="font-size: 14px; font-weight: 700; color: var(--g800);">Nivel {{ nivel.codigo }}: {{ nivel.nombre }} ⚡</span>
-                                <span style="font-size: 12.5px; font-weight: 600; color: var(--primary);">{{ nivel.sub_completados }} de 3 Submódulos</span>
+                                <span style="font-size: 12.5px; font-weight: 600; color: var(--primary);">{{ nivel.sub_completados }} de {{ nivel.total_subs }} Submódulos</span>
                             </div>
                             <div style="width: 100%; height: 6px; background: var(--g100); border-radius: 3px; overflow: hidden;">
                                 <div style="width: {{ nivel.progreso }}%; height: 100%; background: var(--primary); transition: width 0.5s ease;"></div>

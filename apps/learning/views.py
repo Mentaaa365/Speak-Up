@@ -385,46 +385,20 @@ class EvaluarEscrituraView(LoginRequiredMixin, View):
 
 
 class MiNivelRouterView(LoginRequiredMixin, View):
+    _TIPO_TO_URL = {
+        'vocabulario': 'learning:vocabulary',
+        'musica': 'learning:music',
+        'entrevista': 'learning:ai_interview',
+        'writing': 'learning:writing',
+    }
+
     def get(self, request, *args, **kwargs):
-        perfil = request.user.perfil # O Perfil.objects.get(usuario=request.user)
-        
-        # 1. Buscamos los submódulos del nivel actual del usuario
-        sub_vocabulario = Submodulo.objects.filter(nivel=perfil.nivel_mcer, tipo='vocabulario').first()
-        sub_musica = Submodulo.objects.filter(nivel=perfil.nivel_mcer, tipo='musica').first()
-        
-        # 2. Lógica para saber si completó Vocabulario
-        ejercicios_vocab_total = sub_vocabulario.ejercicios.count() if sub_vocabulario else 0
-        ejercicios_vocab_aprobados = IntentoEjercicio.objects.filter(
-            perfil=perfil,
-            ejercicio__submodulo=sub_vocabulario,
-            puntaje__gte=80,
-            activo=True,
-        ).count()
-        
-        vocab_completado = (ejercicios_vocab_total > 0) and (ejercicios_vocab_aprobados >= ejercicios_vocab_total)
+        perfil = request.user.perfil
 
-        # 3. Lógica para saber si completó Música
-        ejercicios_musica_total = sub_musica.ejercicios.count() if sub_musica else 0
-        ejercicios_musica_aprobados = IntentoEjercicio.objects.filter(
-            perfil=perfil,
-            ejercicio__submodulo=sub_musica,
-            puntaje__gte=80,
-            activo=True,
-        ).count()
-        
-        musica_completada = (ejercicios_musica_total > 0) and (ejercicios_musica_aprobados >= ejercicios_musica_total)
+        for sub in perfil.nivel_mcer.submodulos.all().order_by('orden'):
+            if not _submodulo_completado(perfil, sub):
+                url_name = self._TIPO_TO_URL.get(sub.tipo)
+                if url_name:
+                    return redirect(url_name)
 
-        # 4. EL POLICÍA DE TRÁNSITO (Redirecciones blindadas)
-        if not vocab_completado:
-            # Si no ha terminado vocabulario, lo mandamos ahí
-            return redirect('learning:vocabulary')
-            
-        elif vocab_completado and not musica_completada:
-            # Ya pasó vocabulario, lo mandamos directo a música
-            return redirect('learning:music')
-            
-        else:
-            # Si ya terminó ambos (o si ocurre algún caso raro), 
-            # lo mandamos por defecto al siguiente nivel o dashboard
-            # IMPORTANTE: Asegúrate de que esta URL exista en tu urls.py
-            return redirect('progress:dashboard')
+        return redirect('progress:dashboard')

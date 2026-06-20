@@ -1079,3 +1079,95 @@ class MiNivelRouterViewTests(TestCase):
         self._pass_ejercicio(ej_w)
         response = self.client.get(self.url)
         self.assertRedirects(response, reverse("progress:dashboard"), fetch_redirect_response=False)
+
+
+class ExercisePrioritizerTests(TestCase):
+    """ExercisePrioritizer — Claude reorders exercises by error patterns."""
+
+    def _make_prioritizer(self, return_text):
+        import os
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=return_text)]
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_response
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch("apps.learning.exercise_prioritizer.anthropic.Anthropic", return_value=mock_client):
+                from apps.learning.exercise_prioritizer import ExercisePrioritizer
+                return ExercisePrioritizer(), mock_client
+
+    def test_returns_ordered_ids(self):
+        prioritizer, _ = self._make_prioritizer("[5, 3, 8]")
+        result = prioritizer.prioritize(
+            nivel="A1",
+            word_errors={"apple": 3},
+            pending_exercises=[
+                {"id": 3, "texto_objetivo": "cat"},
+                {"id": 5, "texto_objetivo": "I like apples"},
+                {"id": 8, "texto_objetivo": "good morning"},
+            ],
+        )
+        self.assertEqual(result, [5, 3, 8])
+
+    def test_malformed_json_raises_ai_evaluation_error(self):
+        from apps.learning.writing_evaluator import AIEvaluationError
+        prioritizer, _ = self._make_prioritizer("Here are my suggestions...")
+        with self.assertRaises(AIEvaluationError):
+            prioritizer.prioritize("A1", {}, [{"id": 1, "texto_objetivo": "hello"}])
+
+    def test_constructor_sets_timeout(self):
+        import os
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch("apps.learning.exercise_prioritizer.anthropic.Anthropic") as mock_cls:
+                from apps.learning.exercise_prioritizer import ExercisePrioritizer
+                ExercisePrioritizer()
+                self.assertIn("timeout", mock_cls.call_args.kwargs)
+
+
+class PrioritizeExercisesViewTests(TestCase):
+    """POST /learning/vocabulary/prioritize/ — returns Claude-ordered IDs."""
+
+    def setUp(self):
+        self.url = reverse("learning:vocabulary_prioritize")
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=1, parametros_json={})
+        self.user = User.objects.create_user(
+            username="prio@example.com", email="prio@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.client.force_login(self.user)
+
+    def _post(self, data):
+        return self.client.post(
+            self.url, data=json.dumps(data), content_type="application/json",
+        )
+
+    @patch("apps.learning.views.ExercisePrioritizer")
+    def test_returns_ordered_ids_from_claude(self, MockPrio):
+        MockPrio.return_value.prioritize.return_value = [5, 3, 8]
+        response = self._post({
+            "word_errors": {"apple": 3},
+            "pending_exercises": [
+                {"id": 3, "texto_objetivo": "cat"},
+                {"id": 5, "texto_objetivo": "I like apples"},
+                {"id": 8, "texto_objetivo": "good morning"},
+            ],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["ordered_ids"], [5, 3, 8])
+
+    @patch("apps.learning.views.ExercisePrioritizer")
+    def test_ai_failure_returns_null_ordered_ids(self, MockPrio):
+        from apps.learning.writing_evaluator import AIEvaluationError
+        MockPrio.return_value.prioritize.side_effect = AIEvaluationError("fail")
+        response = self._post({
+            "word_errors": {},
+            "pending_exercises": [{"id": 1, "texto_objetivo": "hello"}],
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["ordered_ids"])
+
+    def test_unauthenticated_redirects(self):
+        self.client.logout()
+        response = self._post({"word_errors": {}, "pending_exercises": []})
+        self.assertEqual(response.status_code, 302)

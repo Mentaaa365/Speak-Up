@@ -12,6 +12,7 @@ from django.views.generic import TemplateView
 from apps.authentication.models import Perfil
 from apps.curriculum.models import Ejercicio, Submodulo
 from apps.learning.ai_client import AIInterviewClient
+from apps.learning.exercise_prioritizer import ExercisePrioritizer
 from apps.learning.models import SesionEntrevista
 from apps.learning.writing_evaluator import AIEvaluationError, AIWritingEvaluator
 from apps.progress.models import IntentoEjercicio
@@ -386,6 +387,30 @@ class EvaluarEscrituraView(LoginRequiredMixin, View):
                 'suggestions': 'Evaluación pendiente. Puedes reintentar más tarde.',
                 'submodulo_completado': False,
             })
+
+
+class PrioritizeExercisesView(LoginRequiredMixin, View):
+    http_method_names = ['post']
+
+    def post(self, request, *args, **kwargs):
+        try:
+            body = json.loads(request.body)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'invalid_payload'}, status=400)
+
+        perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
+
+        try:
+            prioritizer = ExercisePrioritizer()
+            ordered_ids = prioritizer.prioritize(
+                nivel=perfil.nivel_mcer.codigo,
+                word_errors=body.get('word_errors', {}),
+                pending_exercises=body.get('pending_exercises', []),
+            )
+        except (AIEvaluationError, EnvironmentError):
+            ordered_ids = None
+
+        return JsonResponse({'ordered_ids': ordered_ids})
 
 
 class MiNivelRouterView(LoginRequiredMixin, View):

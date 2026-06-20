@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRecording     = false;
     let lastTranscript  = '';
     let ttsPlayCount    = 0;
+    const passedSet     = new Set();
+    const wordErrors    = new Map();
 
     // ─────────────────────────────────────────────────────────────────────────
     //  NAVEGACIÓN — Muestra / oculta cards
@@ -100,6 +102,62 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTranscript = '';
         ttsPlayCount   = 0;
         isRecording    = false;
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  PRIORIZACIÓN — Claude reorders exercises by error patterns (RF-04)
+    //
+    //  One API call after the first pass. Claude considers phonetic similarity,
+    //  word families, and linguistic patterns — not just string matching.
+    //  Falls back to local deterministic sort if Claude fails or is unavailable.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    let claudeOrder = null;  // populated after first pass via PRIORITIZE_URL
+
+    const errorOverlap = (texto) => {
+        const words = texto.toLowerCase().replace(/[.,!?¿¡]/g, '').split(/\s+/);
+        return words.reduce((sum, w) => sum + (wordErrors.get(w) || 0), 0);
+    };
+
+    const findNextLocal = () => {
+        const unpassed = [];
+        for (let i = 0; i < EXERCISES.length; i++) {
+            if (!passedSet.has(i)) unpassed.push(i);
+        }
+        if (unpassed.length === 0) return -1;
+        unpassed.sort((a, b) => errorOverlap(EXERCISES[b].texto_objetivo) - errorOverlap(EXERCISES[a].texto_objetivo));
+        return unpassed[0];
+    };
+
+    const findNextPrioritized = () => {
+        if (claudeOrder) {
+            const next = claudeOrder.find(id => {
+                const idx = EXERCISES.findIndex(e => e.id === id);
+                return idx !== -1 && !passedSet.has(idx);
+            });
+            if (next !== undefined) return EXERCISES.findIndex(e => e.id === next);
+        }
+        return findNextLocal();
+    };
+
+    const requestClaudePrioritization = () => {
+        const pending = EXERCISES
+            .filter((_, i) => !passedSet.has(i))
+            .map(e => ({ id: e.id, texto_objetivo: e.texto_objetivo }));
+        if (pending.length === 0) return;
+
+        const errors = {};
+        wordErrors.forEach((count, word) => { errors[word] = count; });
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+        fetch(PRIORITIZE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ word_errors: errors, pending_exercises: pending }),
+        })
+        .then(r => r.json())
+        .then(data => { if (data.ordered_ids) claudeOrder = data.ordered_ids; })
+        .catch(() => {});
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -269,6 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetWords  = cleanTarget.split(/\s+/);
         const spokenWords  = cleanSpoken.split(/\s+/);
 
+        targetWords.forEach((w, i) => {
+            if (spokenWords[i] !== w) wordErrors.set(w, (wordErrors.get(w) || 0) + 1);
+        });
+
         const feedbackContainer = card.querySelector('#feedback-container');
         if (feedbackContainer) {
             feedbackContainer.innerHTML = targetWords.map((word, i) => {
@@ -301,15 +363,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ── Avance automático si aprobado ─────────────────────────────────────
         if (data.aprobado) {
+            passedSet.add(currentIndex);
             totalCompleted++;
             updateProgressBar();
 
+            if (passedSet.size === 1) requestClaudePrioritization();
+
             setTimeout(() => {
-                if (currentIndex < EXERCISES.length - 1) {
-                    currentIndex++;
+                const next = findNextPrioritized();
+                if (next !== -1) {
+                    currentIndex = next;
                     showExercise(currentIndex);
                 } else {
-                    // Último ejercicio completado
                     _showCompletionMessage(data.submodulo_completado);
                 }
             }, 1500);

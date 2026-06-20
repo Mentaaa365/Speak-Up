@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import VocabularyLearningView, MusicLearningView, WritingLearningView, EvaluarEscrituraView, MiNivelRouterView
+from .views import VocabularyLearningView, MusicLearningView, WritingLearningView, EvaluarEscrituraView, PrioritizeExercisesView, MiNivelRouterView
 
 app_name = 'learning'
 
@@ -17,5 +17,6 @@ urlpatterns = [
     path('ai-interview/', views.AiInterviewLearningView.as_view(), name='ai_interview'),
     path('ai-interview/turno/', views.TurnoEntrevistaView.as_view(), name='interview_turno'),
     path('ai-interview/finalizar/', views.FinalizarEntrevistaView.as_view(), name='interview_finalizar'),
+    path('vocabulary/prioritize/', PrioritizeExercisesView.as_view(), name='vocabulary_prioritize'),
     path('mi-nivel-smart/', MiNivelRouterView.as_view(), name='router_nivel'),
 ]

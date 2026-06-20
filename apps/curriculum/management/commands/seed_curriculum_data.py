@@ -16,6 +16,63 @@ SUBMODULO_TIPOS = [
     ("writing", 4),
 ]
 
+VOCABULARY_EXERCISES = {
+    "A1": [
+        {
+            "texto_objetivo": "apple",
+            "contenido_json": {
+                "imagen_url": "https://images.unsplash.com/photo-1579613832125-5d34a13ffe2a?w=400&h=300&fit=crop",
+            },
+        },
+        {
+            "texto_objetivo": "cat",
+            "contenido_json": {
+                "imagen_url": "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=300&fit=crop",
+            },
+        },
+        {
+            "texto_objetivo": "good morning",
+            "contenido_json": {
+                "imagen_url": "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=400&h=300&fit=crop",
+            },
+        },
+    ],
+    "A2": [
+        {
+            "texto_objetivo": "She is reading a book",
+            "contenido_json": {
+                "imagen_url": "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop",
+            },
+        },
+        {
+            "texto_objetivo": "I take the bus to school",
+            "contenido_json": {
+                "imagen_url": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&h=300&fit=crop",
+            },
+        },
+        {
+            "texto_objetivo": "They are playing in the park",
+            "contenido_json": {
+                "imagen_url": "https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&h=300&fit=crop",
+            },
+        },
+    ],
+    "B1": [
+        {
+            "texto_objetivo": "The environmental impact of urbanization has become increasingly concerning",
+            "contenido_json": {},
+        },
+        {
+            "texto_objetivo": "Despite considerable opposition the new policy was implemented successfully",
+            "contenido_json": {},
+        },
+        {
+            "texto_objetivo": "Scientists have discovered a strong correlation between sleep quality and academic performance",
+            "contenido_json": {},
+        },
+    ],
+}
+
 MUSIC_EXERCISES = {
     "A1": [
         {
@@ -128,6 +185,19 @@ class Command(BaseCommand):
                 )
                 if sub_created:
                     created_submodulos += 1
+
+            vocab_sub = Submodulo.objects.get(nivel=nivel, tipo="vocabulario")
+            for exercise in VOCABULARY_EXERCISES.get(nivel_data["codigo"], []):
+                _, ej_created = Ejercicio.objects.get_or_create(
+                    submodulo=vocab_sub,
+                    texto_objetivo=exercise["texto_objetivo"],
+                    defaults={
+                        "nivel_dificultad": nivel_data["codigo"],
+                        "contenido_json": exercise["contenido_json"],
+                    },
+                )
+                if ej_created:
+                    created_ejercicios += 1
 
             musica_sub = Submodulo.objects.get(nivel=nivel, tipo="musica")
             for exercise in MUSIC_EXERCISES.get(nivel_data["codigo"], []):

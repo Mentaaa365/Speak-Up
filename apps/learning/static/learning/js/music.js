@@ -215,10 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
             lineScores.set(currentLineIndex, Math.max(prev, puntaje));
 
             if (puntaje >= 80) {
-                if (lineEl) lineEl.style.color = "#10B981";
+                if (lineEl) { lineEl.style.color = "#10B981"; lineEl.textContent = "✓ " + lineaObjetivo; }
                 karaokeStatus.innerHTML = `✅ ¡Perfecto! (${puntaje}%)`;
             } else {
-                if (lineEl) lineEl.style.color = "#F59E0B";
+                if (lineEl) { lineEl.style.color = "#F59E0B"; lineEl.textContent = "✗ " + lineaObjetivo; }
                 karaokeStatus.innerHTML = `⚠️ (${puntaje}%). Dijiste: "${transcript}". Intenta de nuevo.`;
             }
 

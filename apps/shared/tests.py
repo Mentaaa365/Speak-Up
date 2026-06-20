@@ -1,12 +1,65 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from apps.curriculum.models import Ejercicio, NivelMCER, Submodulo
 from apps.learning.models import SesionEntrevista
 from apps.progress.models import IntentoEjercicio
-from apps.shared.utils import _submodulo_completado
+from apps.shared.utils import _score_palabra_por_palabra, _submodulo_completado
 
 User = get_user_model()
+
+
+class ScorePalabraPorPalabraTests(SimpleTestCase):
+    """Positional word-by-word scoring — must mirror vocabulary.js score()."""
+
+    def test_exact_match_returns_100(self):
+        self.assertEqual(_score_palabra_por_palabra("appointment", "appointment"), 100)
+
+    def test_no_match_returns_0(self):
+        self.assertEqual(_score_palabra_por_palabra("hello world", "appointment schedule"), 0)
+
+    def test_partial_match_rounds_correctly(self):
+        # "I have an meeting" vs "I have an appointment" → 3/4 = 75
+        self.assertEqual(_score_palabra_por_palabra("I have an meeting", "I have an appointment"), 75)
+
+    def test_case_insensitive(self):
+        self.assertEqual(_score_palabra_por_palabra("Hello World", "hello world"), 100)
+
+    def test_punctuation_stripped(self):
+        self.assertEqual(_score_palabra_por_palabra("hello, world!", "hello world"), 100)
+
+    def test_parentheses_stripped(self):
+        self.assertEqual(_score_palabra_por_palabra("(hello) world", "hello world"), 100)
+
+    def test_empty_transcripcion_returns_0(self):
+        self.assertEqual(_score_palabra_por_palabra("", "hello"), 0)
+
+    def test_empty_objetivo_returns_0(self):
+        self.assertEqual(_score_palabra_por_palabra("hello", ""), 0)
+
+    def test_both_empty_returns_0(self):
+        self.assertEqual(_score_palabra_por_palabra("", ""), 0)
+
+    def test_whitespace_only_returns_0(self):
+        self.assertEqual(_score_palabra_por_palabra("   ", "hello"), 0)
+
+    def test_word_order_matters(self):
+        # "am I happy" vs "I am happy" → only "happy" at pos 2 matches → 1/3 = 33
+        self.assertEqual(_score_palabra_por_palabra("am I happy", "I am happy"), 33)
+
+    def test_extra_words_in_transcript_ignored(self):
+        # "I am very happy today" vs "I am happy" → pos 0: ok, pos 1: ok, pos 2: "very" != "happy" → 2/3 = 67
+        self.assertEqual(_score_palabra_por_palabra("I am very happy today", "I am happy"), 67)
+
+    def test_fewer_words_in_transcript(self):
+        # "I" vs "I am happy" → pos 0: ok, pos 1: missing, pos 2: missing → 1/3 = 33
+        self.assertEqual(_score_palabra_por_palabra("I", "I am happy"), 33)
+
+    def test_multi_word_full_match(self):
+        self.assertEqual(_score_palabra_por_palabra(
+            "the quick brown fox jumps over the lazy dog",
+            "the quick brown fox jumps over the lazy dog",
+        ), 100)
 
 
 class SubmoduloCompletadoTests(TestCase):

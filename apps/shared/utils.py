@@ -1,4 +1,33 @@
+import re
 from difflib import SequenceMatcher
+
+_PUNCTUATION_RE = re.compile(r'[.,!?¿¡()]')
+
+
+def _score_palabra_por_palabra(transcripcion: str, objetivo: str) -> int:
+    """Positional word-by-word scoring — mirrors vocabulary.js score().
+
+    Both music.js and vocabulary.js use this same algorithm. If you change
+    the logic here, update both JS files to stay in sync.
+
+    Returns an integer 0–100.
+    """
+    if not objetivo or not objetivo.strip():
+        return 0
+    if not transcripcion or not transcripcion.strip():
+        return 0
+
+    clean_t = _PUNCTUATION_RE.sub('', transcripcion.lower()).split()
+    clean_o = _PUNCTUATION_RE.sub('', objetivo.lower()).split()
+
+    if not clean_o:
+        return 0
+
+    correct = sum(
+        1 for i, word in enumerate(clean_o)
+        if i < len(clean_t) and clean_t[i] == word
+    )
+    return round((correct / len(clean_o)) * 100)
 
 
 def _similitud(a: str, b: str) -> float:

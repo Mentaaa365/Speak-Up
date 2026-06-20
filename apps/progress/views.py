@@ -12,7 +12,7 @@ from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
 from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
-from apps.shared.utils import _submodulo_completado
+from apps.shared.utils import _score_palabra_por_palabra, _submodulo_completado
 
 
 
@@ -308,12 +308,15 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 class GuardarEjercicioView(LoginRequiredMixin, View):
     http_method_names = ['post']  # GET -> 405 automatically
 
+    # Submodule types where the server computes the score from transcripcion.
+    # Other types still accept client-side puntaje (temporary — music is next).
+    _SERVER_SCORED_TYPES = {'vocabulario'}
+
     def post(self, request, *args, **kwargs):
         try:
             body = json.loads(request.body)
             ejercicio_id = body['ejercicio_id']
-            puntaje = Decimal(str(body['puntaje']))
-        except (json.JSONDecodeError, KeyError, InvalidOperation):
+        except (json.JSONDecodeError, KeyError):
             return JsonResponse({'error': 'invalid_payload'}, status=400)
 
         perfil = Perfil.objects.select_related('nivel_mcer').get(usuario=request.user)
@@ -325,12 +328,26 @@ class GuardarEjercicioView(LoginRequiredMixin, View):
         if ejercicio.submodulo.nivel != perfil.nivel_mcer:
             return JsonResponse({'error': 'level_mismatch'}, status=403)
 
+        transcripcion = body.get('transcripcion')
+
+        if ejercicio.submodulo.tipo in self._SERVER_SCORED_TYPES:
+            if not transcripcion or not transcripcion.strip():
+                return JsonResponse({'error': 'transcripcion_required'}, status=400)
+            puntaje = Decimal(
+                _score_palabra_por_palabra(transcripcion, ejercicio.texto_objetivo)
+            )
+        else:
+            try:
+                puntaje = Decimal(str(body['puntaje']))
+            except (KeyError, InvalidOperation):
+                return JsonResponse({'error': 'invalid_payload'}, status=400)
+
         IntentoEjercicio.objects.filter(
             perfil=perfil, ejercicio=ejercicio, activo=True
         ).update(activo=False)
         IntentoEjercicio.objects.create(
             perfil=perfil, ejercicio=ejercicio, puntaje=puntaje,
-            activo=True, transcripcion=body.get('transcripcion'),
+            activo=True, transcripcion=transcripcion,
         )
         completado = _submodulo_completado(perfil, ejercicio.submodulo)
         return JsonResponse({

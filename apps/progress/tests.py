@@ -333,10 +333,10 @@ class GuardarEjercicioViewTests(TestCase):
         )
 
     def test_sc02_failed_attempt_returns_200_aprobado_false(self):
-        """POST puntaje=55 -> 200, aprobado=False, intento persists."""
+        """POST with wrong transcripcion -> server scores < 80 -> aprobado=False."""
         self.client.force_login(self.user)
         response = self._post_json(
-            {"ejercicio_id": self.ejercicio.pk, "puntaje": 55}
+            {"ejercicio_id": self.ejercicio.pk, "transcripcion": "meeting"}
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -348,14 +348,12 @@ class GuardarEjercicioViewTests(TestCase):
             1,
         )
 
-    def test_sc03_missing_transcripcion_stores_null(self):
-        """POST without transcripcion key -> intento.transcripcion IS NULL."""
+    def test_sc03_missing_transcripcion_returns_400_for_vocabulary(self):
+        """POST without transcripcion for a vocabulary ejercicio -> 400."""
         self.client.force_login(self.user)
-        self._post_json({"ejercicio_id": self.ejercicio.pk, "puntaje": 90})
-        intento = IntentoEjercicio.objects.get(
-            perfil=self.perfil, ejercicio=self.ejercicio, activo=True
-        )
-        self.assertIsNone(intento.transcripcion)
+        response = self._post_json({"ejercicio_id": self.ejercicio.pk, "puntaje": 90})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
 
     def test_sc04_nonexistent_ejercicio_returns_404(self):
         """POST with unknown ejercicio_id -> 404 JSON."""
@@ -399,3 +397,87 @@ class GuardarEjercicioViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertIn("login", response["Location"])
+
+
+class GuardarEjercicioServerScoringTests(TestCase):
+    """Server-side scoring: view must recalculate puntaje from transcripcion."""
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo="A2", orden=2, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="vocabulario", orden=1
+        )
+        self.ejercicio = Ejercicio.objects.create(
+            submodulo=self.submodulo,
+            contenido_json={},
+            nivel_dificultad="A2",
+            texto_objetivo="I have an appointment",
+        )
+        self.user = User.objects.create_user(
+            username="scoring@example.com", email="scoring@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.url = reverse("progress:guardar_ejercicio")
+        self.client.force_login(self.user)
+
+    def _post_json(self, data):
+        import json
+        return self.client.post(
+            self.url, data=json.dumps(data), content_type="application/json",
+        )
+
+    def test_server_ignores_client_puntaje(self):
+        """Client sends puntaje=100 but only 3/4 words match → server returns 75."""
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "puntaje": 100,
+            "transcripcion": "I have an meeting",
+        })
+        data = response.json()
+        self.assertEqual(data["puntaje"], "75.00")
+        self.assertFalse(data["aprobado"])
+
+    def test_perfect_transcripcion_returns_100(self):
+        """Exact match → 100 regardless of client puntaje."""
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "puntaje": 50,
+            "transcripcion": "I have an appointment",
+        })
+        data = response.json()
+        self.assertEqual(data["puntaje"], "100.00")
+        self.assertTrue(data["aprobado"])
+
+    def test_stored_puntaje_matches_server_calculation(self):
+        """IntentoEjercicio.puntaje must be server-computed, not client's."""
+        self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "puntaje": 100,
+            "transcripcion": "I have an meeting",
+        })
+        intento = IntentoEjercicio.objects.get(
+            perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+        )
+        self.assertEqual(intento.puntaje, 75)
+
+    def test_transcripcion_stored_alongside_server_score(self):
+        """The raw transcripcion is persisted for auditing."""
+        self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "transcripcion": "I have an meeting",
+        })
+        intento = IntentoEjercicio.objects.get(
+            perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+        )
+        self.assertEqual(intento.transcripcion, "I have an meeting")
+
+    def test_no_puntaje_field_still_works(self):
+        """Client can omit puntaje entirely — server computes it."""
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "transcripcion": "I have an appointment",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["aprobado"])

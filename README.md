@@ -135,6 +135,31 @@ Los módulos principales son:
 
 ---
 
+## 🗄️ Database Seeding
+
+After running migrations (`python manage.py migrate`), populate the database with the following commands **in this order**:
+
+```bash
+# 1. Levels, submodules, exercises (music LRC + writing), and WRITING questions
+python manage.py seed_curriculum_data
+
+# 2. Promotion exam questions (SPEAKING, LISTENING, CHOICE) for all levels
+python manage.py seed_promo_questions
+
+# 3. Diagnostic questions (SPEAKING, LISTENING, CHOICE) from CSV
+python poblar_bd.py
+```
+
+| Command | What it loads | bank_context |
+|---------|--------------|--------------|
+| `seed_curriculum_data` | NivelMCER (A1/A2/B1), Submodulos (4 per level), music exercises with LRC, writing exercises, WRITING questions | DIAGNOSTIC + PROMOTION_EXAM |
+| `seed_promo_questions` | SPEAKING, LISTENING, CHOICE questions for promotion exams | PROMOTION_EXAM |
+| `poblar_bd.py` | SPEAKING, LISTENING, CHOICE questions from `preguntas.csv` | DIAGNOSTIC |
+
+All three are idempotent — they use `get_or_create` and can be run multiple times without duplicating data. Use `python poblar_bd.py --reset` to clear the question bank before reloading (requires confirmation).
+
+---
+
 ## 👨‍💻 Equipo de Desarrollo
 
 | Integrante | Rol |

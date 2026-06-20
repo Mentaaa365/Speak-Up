@@ -12,7 +12,7 @@ from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
 from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
-from apps.shared.utils import _score_palabra_por_palabra, _submodulo_completado
+from apps.shared.utils import _score_musica, _score_palabra_por_palabra, _submodulo_completado
 
 
 
@@ -308,10 +308,6 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 class GuardarEjercicioView(LoginRequiredMixin, View):
     http_method_names = ['post']  # GET -> 405 automatically
 
-    # Submodule types where the server computes the score from transcripcion.
-    # Other types still accept client-side puntaje (temporary — music is next).
-    _SERVER_SCORED_TYPES = {'vocabulario'}
-
     def post(self, request, *args, **kwargs):
         try:
             body = json.loads(request.body)
@@ -328,14 +324,24 @@ class GuardarEjercicioView(LoginRequiredMixin, View):
         if ejercicio.submodulo.nivel != perfil.nivel_mcer:
             return JsonResponse({'error': 'level_mismatch'}, status=403)
 
+        tipo = ejercicio.submodulo.tipo
         transcripcion = body.get('transcripcion')
 
-        if ejercicio.submodulo.tipo in self._SERVER_SCORED_TYPES:
+        if tipo == 'vocabulario':
             if not transcripcion or not transcripcion.strip():
                 return JsonResponse({'error': 'transcripcion_required'}, status=400)
             puntaje = Decimal(
                 _score_palabra_por_palabra(transcripcion, ejercicio.texto_objetivo)
             )
+
+        elif tipo == 'musica':
+            line_transcriptions = body.get('line_transcriptions')
+            if not isinstance(line_transcriptions, dict) or not line_transcriptions:
+                return JsonResponse({'error': 'line_transcriptions_required'}, status=400)
+            lrc_text = (ejercicio.contenido_json or {}).get('lrc', '')
+            puntaje = Decimal(_score_musica(line_transcriptions, lrc_text))
+            transcripcion = json.dumps(line_transcriptions)
+
         else:
             try:
                 puntaje = Decimal(str(body['puntaje']))

@@ -481,3 +481,101 @@ class GuardarEjercicioServerScoringTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["aprobado"])
+
+
+class GuardarEjercicioMusicaScoringTests(TestCase):
+    """Server-side scoring for music: LRC lines × per-line transcriptions."""
+
+    SAMPLE_LRC = (
+        "[00:10.00]Hello world\n"
+        "[00:15.50]How are you\n"
+        "[00:20.00]I am fine thank you\n"
+    )
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo="A1", orden=1, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="musica", orden=2
+        )
+        self.ejercicio = Ejercicio.objects.create(
+            submodulo=self.submodulo,
+            contenido_json={"audio_url": "https://example.com/song.mp3", "lrc": self.SAMPLE_LRC},
+            nivel_dificultad="A1",
+            texto_objetivo="Test Song",
+        )
+        self.user = User.objects.create_user(
+            username="music@example.com", email="music@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.url = reverse("progress:guardar_ejercicio")
+        self.client.force_login(self.user)
+
+    def _post_json(self, data):
+        import json
+        return self.client.post(
+            self.url, data=json.dumps(data), content_type="application/json",
+        )
+
+    def test_all_lines_perfect_returns_100(self):
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "line_transcriptions": {
+                "0": "Hello world",
+                "1": "How are you",
+                "2": "I am fine thank you",
+            },
+        })
+        data = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(data["puntaje"], "100.00")
+        self.assertTrue(data["aprobado"])
+
+    def test_server_ignores_client_puntaje_for_music(self):
+        """Client sends puntaje=100 but only 1/3 lines pass → server returns 33."""
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "puntaje": 100,
+            "line_transcriptions": {"0": "Hello world"},
+        })
+        data = response.json()
+        self.assertEqual(data["puntaje"], "33.00")
+        self.assertFalse(data["aprobado"])
+
+    def test_missing_line_transcriptions_returns_400(self):
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "puntaje": 90,
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_empty_line_transcriptions_returns_400(self):
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "line_transcriptions": {},
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_stored_puntaje_is_server_computed(self):
+        self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "line_transcriptions": {"0": "Hello world", "1": "How are you"},
+        })
+        intento = IntentoEjercicio.objects.get(
+            perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+        )
+        self.assertEqual(intento.puntaje, 67)
+
+    def test_line_transcriptions_stored_as_json_in_transcripcion(self):
+        """Per-line data persisted for auditing."""
+        import json
+        lt = {"0": "Hello world", "1": "How are you"}
+        self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "line_transcriptions": lt,
+        })
+        intento = IntentoEjercicio.objects.get(
+            perfil=self.perfil, ejercicio=self.ejercicio, activo=True
+        )
+        self.assertEqual(json.loads(intento.transcripcion), lt)

@@ -4,7 +4,12 @@ from django.test import SimpleTestCase, TestCase
 from apps.curriculum.models import Ejercicio, NivelMCER, Submodulo
 from apps.learning.models import SesionEntrevista
 from apps.progress.models import IntentoEjercicio
-from apps.shared.utils import _score_palabra_por_palabra, _submodulo_completado
+from apps.shared.utils import (
+    _parse_lrc_lines,
+    _score_musica,
+    _score_palabra_por_palabra,
+    _submodulo_completado,
+)
 
 User = get_user_model()
 
@@ -60,6 +65,99 @@ class ScorePalabraPorPalabraTests(SimpleTestCase):
             "the quick brown fox jumps over the lazy dog",
             "the quick brown fox jumps over the lazy dog",
         ), 100)
+
+
+class ParseLrcLinesTests(SimpleTestCase):
+    """LRC parser — must mirror music.js parseLRC() (text extraction only)."""
+
+    SAMPLE_LRC = (
+        "[00:10.00]Hello world\n"
+        "[00:15.50]How are you\n"
+        "[00:20.00]I am fine thank you\n"
+    )
+
+    def test_parses_standard_lrc(self):
+        lines = _parse_lrc_lines(self.SAMPLE_LRC)
+        self.assertEqual(lines, ["Hello world", "How are you", "I am fine thank you"])
+
+    def test_empty_string_returns_empty_list(self):
+        self.assertEqual(_parse_lrc_lines(""), [])
+
+    def test_skips_lines_with_empty_text(self):
+        lrc = "[00:10.00]Hello\n[00:15.00]\n[00:20.00]World\n"
+        self.assertEqual(_parse_lrc_lines(lrc), ["Hello", "World"])
+
+    def test_handles_two_digit_milliseconds(self):
+        lrc = "[00:10.50]Two digits\n"
+        self.assertEqual(_parse_lrc_lines(lrc), ["Two digits"])
+
+    def test_handles_three_digit_milliseconds(self):
+        lrc = "[00:10.500]Three digits\n"
+        self.assertEqual(_parse_lrc_lines(lrc), ["Three digits"])
+
+    def test_handles_integer_seconds(self):
+        lrc = "[01:05]No decimal\n"
+        self.assertEqual(_parse_lrc_lines(lrc), ["No decimal"])
+
+    def test_ignores_non_lrc_lines(self):
+        lrc = "[ti:Song Title]\n[ar:Artist]\n[00:05.00]Actual lyric\n"
+        self.assertEqual(_parse_lrc_lines(lrc), ["Actual lyric"])
+
+    def test_strips_whitespace_from_text(self):
+        lrc = "[00:10.00]  spaced out  \n"
+        self.assertEqual(_parse_lrc_lines(lrc), ["spaced out"])
+
+
+class ScoreMusicaTests(SimpleTestCase):
+    """Global music score: % of LRC lines with word-by-word score >= 80."""
+
+    SAMPLE_LRC = (
+        "[00:10.00]Hello world\n"
+        "[00:15.50]How are you\n"
+        "[00:20.00]I am fine thank you\n"
+    )
+
+    def test_all_lines_perfect_returns_100(self):
+        transcriptions = {
+            "0": "Hello world",
+            "1": "How are you",
+            "2": "I am fine thank you",
+        }
+        self.assertEqual(_score_musica(transcriptions, self.SAMPLE_LRC), 100)
+
+    def test_no_transcriptions_returns_0(self):
+        self.assertEqual(_score_musica({}, self.SAMPLE_LRC), 0)
+
+    def test_partial_lines_returns_percentage(self):
+        # 2 of 3 lines passed → 67%
+        transcriptions = {
+            "0": "Hello world",
+            "1": "How are you",
+            "2": "wrong wrong wrong wrong",
+        }
+        self.assertEqual(_score_musica(transcriptions, self.SAMPLE_LRC), 67)
+
+    def test_empty_lrc_returns_0(self):
+        self.assertEqual(_score_musica({"0": "hello"}, ""), 0)
+
+    def test_line_below_80_does_not_count(self):
+        # "Hello wrong" vs "Hello world" → 1/2 = 50% < 80 → not passed
+        transcriptions = {"0": "Hello wrong"}
+        self.assertEqual(_score_musica(transcriptions, self.SAMPLE_LRC), 0)
+
+    def test_missing_line_indices_count_as_zero(self):
+        # Only line 1 attempted → 1/3 = 33%
+        transcriptions = {"1": "How are you"}
+        self.assertEqual(_score_musica(transcriptions, self.SAMPLE_LRC), 33)
+
+    def test_ignores_extra_indices_beyond_lrc_lines(self):
+        transcriptions = {
+            "0": "Hello world",
+            "1": "How are you",
+            "2": "I am fine thank you",
+            "99": "ghost line",
+        }
+        self.assertEqual(_score_musica(transcriptions, self.SAMPLE_LRC), 100)
 
 
 class SubmoduloCompletadoTests(TestCase):

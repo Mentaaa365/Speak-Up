@@ -2,6 +2,7 @@ import re
 from difflib import SequenceMatcher
 
 _PUNCTUATION_RE = re.compile(r'[.,!?¿¡()]')
+_LRC_LINE_RE = re.compile(r'\[(\d{2}):(\d{2}\.\d{2,3}|\d{2})\](.*)')
 
 
 def _score_palabra_por_palabra(transcripcion: str, objetivo: str) -> int:
@@ -28,6 +29,42 @@ def _score_palabra_por_palabra(transcripcion: str, objetivo: str) -> int:
         if i < len(clean_t) and clean_t[i] == word
     )
     return round((correct / len(clean_o)) * 100)
+
+
+def _parse_lrc_lines(lrc_text: str) -> list[str]:
+    """Extract lyric text lines from LRC format — mirrors music.js parseLRC().
+
+    Both this function and music.js parseLRC() parse the same LRC data from
+    Ejercicio.contenido_json['lrc']. If you change the regex or filtering
+    rules here, update music.js parseLRC() to stay in sync.
+    """
+    lines = []
+    for raw_line in lrc_text.split('\n'):
+        match = _LRC_LINE_RE.match(raw_line)
+        if match:
+            text = match.group(3).strip()
+            if text:
+                lines.append(text)
+    return lines
+
+
+def _score_musica(line_transcriptions: dict, lrc_text: str) -> int:
+    """Compute global music score from per-line best transcriptions.
+
+    Returns 0–100: percentage of LRC lines where the student's best
+    transcription scored >= 80 via _score_palabra_por_palabra().
+    """
+    lines = _parse_lrc_lines(lrc_text)
+    if not lines:
+        return 0
+
+    passed = sum(
+        1 for i, target in enumerate(lines)
+        if _score_palabra_por_palabra(
+            line_transcriptions.get(str(i), ''), target
+        ) >= 80
+    )
+    return round((passed / len(lines)) * 100)
 
 
 def _similitud(a: str, b: str) -> float:

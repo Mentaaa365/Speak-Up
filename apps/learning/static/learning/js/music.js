@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let lyricsData = [];
     let currentLineIndex = -1;
     let lineScores = new Map();
+    let bestTranscripts = new Map();
     let songSaved = false;
 
     // ─── LRC PARSER (preserved from Ian) ───────────────────────────────────
@@ -50,9 +51,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.round((correct / cleanA.length) * 100);
     };
 
-    // ─── PROGRESS SAVE (preserved from Ian) ────────────────────────────────
-    const guardarProgreso = (puntaje, transcripcion) => {
+    // ─── PROGRESS SAVE — server-side scoring ─────────────────────────────
+    // Server recomputes the score from line_transcriptions using the same
+    // word-by-word algorithm (shared/utils.py _score_musica). If you change
+    // the scoring logic in score() above, update _score_palabra_por_palabra
+    // in Python to stay in sync.
+    const guardarProgreso = () => {
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        const lt = {};
+        bestTranscripts.forEach((text, idx) => { lt[String(idx)] = text; });
         return fetchWithRetry(GUARDAR_URL, {
             method: 'POST',
             headers: {
@@ -61,8 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             body: JSON.stringify({
                 ejercicio_id: CANCIONES[currentSongIndex].id,
-                puntaje: puntaje,
-                transcripcion: transcripcion,
+                line_transcriptions: lt,
             }),
         }).then(r => r.json()).catch(err => console.error("Error al guardar:", err));
     };
@@ -115,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentLineIndex = -1;
         lineScores = new Map();
+        bestTranscripts = new Map();
         songSaved = songsCompleted.has(song.id);
 
         lyricsData = parseLRC(lrcText);
@@ -202,6 +209,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const lineEl = document.getElementById(`line-${currentLineIndex}`);
 
             const prev = lineScores.get(currentLineIndex) || 0;
+            if (puntaje > prev) {
+                bestTranscripts.set(currentLineIndex, transcript);
+            }
             lineScores.set(currentLineIndex, Math.max(prev, puntaje));
 
             if (puntaje >= 80) {
@@ -219,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 songSaved = true;
                 songsCompleted.add(CANCIONES[currentSongIndex].id);
 
-                guardarProgreso(globalScore, '').then(response => {
+                guardarProgreso().then(response => {
                     confetti({
                         particleCount: 150,
                         spread: 80,

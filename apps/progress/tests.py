@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.test import TestCase
@@ -579,3 +581,95 @@ class GuardarEjercicioMusicaScoringTests(TestCase):
             perfil=self.perfil, ejercicio=self.ejercicio, activo=True
         )
         self.assertEqual(json.loads(intento.transcripcion), lt)
+
+
+class GuardarEjercicioMusicaProsodyTests(TestCase):
+    """G4: Music scoring applies AI prosody weighting for A2/B1."""
+
+    SAMPLE_LRC = (
+        "[00:10.00]Hello world\n"
+        "[00:15.50]How are you\n"
+        "[00:20.00]I am fine thank you\n"
+    )
+
+    def setUp(self):
+        self.nivel = NivelMCER.objects.create(codigo="A2", orden=2, parametros_json={})
+        self.submodulo = Submodulo.objects.create(
+            nivel=self.nivel, tipo="musica", orden=2
+        )
+        self.ejercicio = Ejercicio.objects.create(
+            submodulo=self.submodulo,
+            contenido_json={"audio_url": "https://example.com/song.mp3", "lrc": self.SAMPLE_LRC},
+            nivel_dificultad="A2",
+            texto_objetivo="Test Song A2",
+        )
+        self.user = User.objects.create_user(
+            username="prosody@example.com", email="prosody@example.com", password="x"
+        )
+        self.perfil = self.user.perfil
+        self.perfil.nivel_mcer = self.nivel
+        self.perfil.save()
+        self.url = reverse("progress:guardar_ejercicio")
+        self.client.force_login(self.user)
+
+    def _post_json(self, data):
+        import json
+        return self.client.post(
+            self.url, data=json.dumps(data), content_type="application/json",
+        )
+
+    @patch("apps.progress.views.ProsodyEvaluator")
+    def test_a2_applies_weighted_score(self, MockProsody):
+        """A2 music: 50% precision + 50% pronunciation from Claude."""
+        MockProsody.return_value.evaluate.return_value = {"pronunciation": 60}
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "line_transcriptions": {
+                "0": "Hello world",
+                "1": "How are you",
+                "2": "I am fine thank you",
+            },
+        })
+        # precision = 100 (all lines pass), pronunciation = 60
+        # weighted = 50%*100 + 50%*60 = 80
+        data = response.json()
+        self.assertEqual(data["puntaje"], "80.00")
+        self.assertTrue(data["aprobado"])
+
+    @patch("apps.progress.views.ProsodyEvaluator")
+    def test_a2_fallback_when_claude_fails(self, MockProsody):
+        """If Claude fails, A2 falls back to 100% precision."""
+        from apps.learning.writing_evaluator import AIEvaluationError
+        MockProsody.return_value.evaluate.side_effect = AIEvaluationError("fail")
+        response = self._post_json({
+            "ejercicio_id": self.ejercicio.pk,
+            "line_transcriptions": {
+                "0": "Hello world",
+                "1": "How are you",
+                "2": "I am fine thank you",
+            },
+        })
+        # Fallback = pure precision = 100
+        data = response.json()
+        self.assertEqual(data["puntaje"], "100.00")
+
+    def test_a1_never_calls_prosody(self):
+        """A1 music uses 100% precision — no Claude call at all."""
+        nivel_a1 = NivelMCER.objects.create(codigo="A1", orden=1, parametros_json={})
+        sub_a1 = Submodulo.objects.create(nivel=nivel_a1, tipo="musica", orden=2)
+        ej_a1 = Ejercicio.objects.create(
+            submodulo=sub_a1,
+            contenido_json={"audio_url": "x", "lrc": self.SAMPLE_LRC},
+            nivel_dificultad="A1", texto_objetivo="A1 Song",
+        )
+        self.perfil.nivel_mcer = nivel_a1
+        self.perfil.save()
+        response = self._post_json({
+            "ejercicio_id": ej_a1.pk,
+            "line_transcriptions": {
+                "0": "Hello world",
+                "1": "How are you",
+                "2": "I am fine thank you",
+            },
+        })
+        self.assertEqual(response.json()["puntaje"], "100.00")

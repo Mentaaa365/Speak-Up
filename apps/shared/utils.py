@@ -91,6 +91,29 @@ def _seleccionar_blanks(texto: str, nivel: str) -> list[int]:
     return sorted(random.sample(content_indices, n)) if n > 0 else []
 
 
+def _score_musica_ponderado(precision: int, nivel: str, ai_scores: dict | None = None) -> int:
+    """Apply RF-04 weighted scoring for music exercises.
+
+    A1: 100% precision (no AI evaluation).
+    A2: 50% precision + 50% pronunciation (AI).
+    B1: 40% precision + 30% intonation (AI) + 30% precision_ai (AI).
+
+    Falls back to 100% precision if ai_scores is None (Claude unavailable,
+    as specified in RF-04 exceptions).
+    """
+    if nivel == 'A1' or ai_scores is None:
+        return precision
+
+    if nivel == 'A2':
+        pronunciation = ai_scores.get('pronunciation', precision)
+        return round(0.50 * precision + 0.50 * pronunciation)
+
+    # B1
+    intonation = ai_scores.get('intonation', precision)
+    precision_ai = ai_scores.get('precision', precision)
+    return round(0.40 * precision + 0.30 * intonation + 0.30 * precision_ai)
+
+
 def _similitud(a: str, b: str) -> float:
     """Returns a 0.0–1.0 similarity score between two text strings."""
     return SequenceMatcher(None, a.lower().strip(), b.lower().strip()).ratio()

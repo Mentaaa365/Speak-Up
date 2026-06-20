@@ -7,6 +7,7 @@ from apps.progress.models import IntentoEjercicio
 from apps.shared.utils import (
     _parse_lrc_lines,
     _score_musica,
+    _score_musica_ponderado,
     _score_palabra_por_palabra,
     _seleccionar_blanks,
     _submodulo_completado,
@@ -203,6 +204,41 @@ class SeleccionarBlanksTests(SimpleTestCase):
         indices = _seleccionar_blanks("Hello world", "A1")
         for idx in indices:
             self.assertIsInstance(idx, int)
+
+
+class ScoreMusicaPonderadoTests(SimpleTestCase):
+    """RF-04 weighted scoring: A1=100% precision, A2=50/50, B1=40/30/30."""
+
+    def test_a1_returns_precision_unchanged(self):
+        self.assertEqual(_score_musica_ponderado(80, "A1", {"pronunciation": 50}), 80)
+
+    def test_a1_ignores_ai_scores(self):
+        self.assertEqual(_score_musica_ponderado(70, "A1"), 70)
+
+    def test_a2_formula_50_50(self):
+        # 50% * 80 + 50% * 60 = 70
+        self.assertEqual(_score_musica_ponderado(80, "A2", {"pronunciation": 60}), 70)
+
+    def test_b1_formula_40_30_30(self):
+        # 40% * 80 + 30% * 70 + 30% * 60 = 32 + 21 + 18 = 71
+        self.assertEqual(
+            _score_musica_ponderado(80, "B1", {"intonation": 70, "precision": 60}), 71
+        )
+
+    def test_fallback_when_ai_scores_none_a2(self):
+        self.assertEqual(_score_musica_ponderado(85, "A2", None), 85)
+
+    def test_fallback_when_ai_scores_none_b1(self):
+        self.assertEqual(_score_musica_ponderado(75, "B1", None), 75)
+
+    def test_a2_missing_key_falls_back_to_precision(self):
+        # ai_scores exists but pronunciation key missing → uses precision as default
+        self.assertEqual(_score_musica_ponderado(80, "A2", {}), 80)
+
+    def test_b1_partial_keys_falls_back(self):
+        # Only intonation provided, precision key missing → precision fills in
+        # 40% * 90 + 30% * 70 + 30% * 90 = 36 + 21 + 27 = 84
+        self.assertEqual(_score_musica_ponderado(90, "B1", {"intonation": 70}), 84)
 
 
 class SubmoduloCompletadoTests(TestCase):

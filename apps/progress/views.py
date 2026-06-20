@@ -12,7 +12,15 @@ from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
 from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
-from apps.shared.utils import _score_musica, _score_palabra_por_palabra, _submodulo_completado
+from apps.learning.prosody_evaluator import ProsodyEvaluator
+from apps.learning.writing_evaluator import AIEvaluationError
+from apps.shared.utils import (
+    _parse_lrc_lines,
+    _score_musica,
+    _score_musica_ponderado,
+    _score_palabra_por_palabra,
+    _submodulo_completado,
+)
 
 
 
@@ -339,7 +347,19 @@ class GuardarEjercicioView(LoginRequiredMixin, View):
             if not isinstance(line_transcriptions, dict) or not line_transcriptions:
                 return JsonResponse({'error': 'line_transcriptions_required'}, status=400)
             lrc_text = (ejercicio.contenido_json or {}).get('lrc', '')
-            puntaje = Decimal(_score_musica(line_transcriptions, lrc_text))
+            precision = _score_musica(line_transcriptions, lrc_text)
+            nivel_codigo = perfil.nivel_mcer.codigo
+
+            ai_scores = None
+            if nivel_codigo in ('A2', 'B1'):
+                try:
+                    evaluator = ProsodyEvaluator()
+                    lrc_lines = _parse_lrc_lines(lrc_text)
+                    ai_scores = evaluator.evaluate(line_transcriptions, lrc_lines, nivel_codigo)
+                except (AIEvaluationError, EnvironmentError):
+                    ai_scores = None
+
+            puntaje = Decimal(_score_musica_ponderado(precision, nivel_codigo, ai_scores))
             transcripcion = json.dumps(line_transcriptions)
 
         else:

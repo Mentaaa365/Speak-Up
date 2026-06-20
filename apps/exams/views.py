@@ -238,6 +238,21 @@ class ExamStartView(LoginRequiredMixin, View):
             nivel_objetivo=nivel_activo,
             puntaje=puntaje,
             aprobado=aprobado,
+            detalle_json={
+                'scores': {
+                    'speaking': score_speaking,
+                    'listening': score_listening,
+                    'choice': score_choice,
+                    'writing': score_writing,
+                },
+                'writing_pending': writing_pending,
+                'per_section': {
+                    'speaking': {'correct': correct_speaking, 'total': total_speaking},
+                    'listening': {'correct': correct_listening, 'total': total_listening},
+                    'choice': {'correct': correct_choice, 'total': total_choice},
+                    'writing': {'avg_score': score_writing},
+                },
+            },
         )
 
         reset_realizado = False

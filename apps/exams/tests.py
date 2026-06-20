@@ -546,6 +546,24 @@ class ExamScoringAndPersistenceTests(TestCase):
         self._post_answers(self._build_perfect_answers())
         self.assertNotIn('examen_promocion_ids', self.client.session)
 
+    @unittest.mock.patch('apps.exams.views.AIWritingEvaluator')
+    def test_detalle_json_populated_with_section_scores(self, MockEval):
+        """detalle_json must contain per-section breakdown after POST."""
+        MockEval.return_value.evaluate_batch.return_value = [
+            {'score': 80, 'grammar': 80, 'coherence': 80, 'vocabulary': 80, 'suggestions': ''}
+        ] * 5
+        self._post_answers(self._build_perfect_answers())
+        intento = ExamenIntento.objects.get(perfil=self.perfil, nivel_objetivo=self.nivel)
+        detalle = intento.detalle_json
+        self.assertIsInstance(detalle, dict)
+        self.assertIn('scores', detalle)
+        for key in ('speaking', 'listening', 'choice', 'writing'):
+            self.assertIn(key, detalle['scores'])
+        self.assertIn('per_section', detalle)
+        self.assertIn('speaking', detalle['per_section'])
+        self.assertIn('correct', detalle['per_section']['speaking'])
+        self.assertIn('total', detalle['per_section']['speaking'])
+
     def test_speaking_only_correct_scores_25(self):
         session_ids = self._get_cached_ids()
         answers = []

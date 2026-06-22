@@ -4,9 +4,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    let currentIndex = 0;
     const totalExercises = EJERCICIOS.length;
     const completed = new Set();
+
+    const _passedIds = (typeof PASSED_IDS !== 'undefined' && Array.isArray(PASSED_IDS)) ? PASSED_IDS : [];
+    _passedIds.forEach(id => completed.add(id));
+
+    const findNextPending = (afterIndex) => {
+        for (let i = afterIndex + 1; i < totalExercises; i++) {
+            if (!completed.has(EJERCICIOS[i].id)) return i;
+        }
+        for (let i = 0; i <= afterIndex; i++) {
+            if (!completed.has(EJERCICIOS[i].id)) return i;
+        }
+        return -1;
+    };
+
+    let currentIndex = findNextPending(-1);
+    if (currentIndex === -1) {
+        showCompletionMessage(true);
+        return;
+    }
 
     const promptText = document.getElementById('prompt-text');
     const indicator = document.getElementById('exercise-indicator');
@@ -19,14 +37,44 @@ document.addEventListener('DOMContentLoaded', () => {
         currentIndex = index;
         const ex = EJERCICIOS[index];
         promptText.textContent = ex.prompt;
-        indicator.textContent = `Ejercicio ${index + 1} de ${totalExercises}`;
+        indicator.textContent = `Ejercicio ${index + 1} de ${totalExercises} · ${completed.size} aprobados`;
         textarea.value = '';
         textarea.disabled = false;
         btnSubmit.disabled = false;
         btnSubmit.textContent = 'Evaluar respuesta';
-        btnNext.style.display = (currentIndex < totalExercises - 1 || completed.size < totalExercises) ? 'none' : 'none';
+        btnNext.style.display = 'none';
         feedbackPanel.style.display = 'none';
     };
+
+    function showCompletionMessage(submoduloCompletado) {
+        document.querySelector('#prompt-container').style.display = 'none';
+        document.querySelector('#writing-input').style.display = 'none';
+        btnSubmit.style.display = 'none';
+        btnNext.style.display = 'none';
+        feedbackPanel.style.display = 'none';
+
+        indicator.textContent = `${totalExercises} de ${totalExercises} aprobados`;
+
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'text-align:center; padding:40px 20px;';
+
+        const nextUrl = (typeof MI_NIVEL_URL !== 'undefined') ? MI_NIVEL_URL : DASHBOARD_URL;
+
+        if (submoduloCompletado) {
+            wrapper.innerHTML =
+                '<p style="font-size:22px; font-weight:800; color:#10B981; margin:0 0 8px 0;">🎉 ¡Submódulo completado!</p>' +
+                '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">Aprobaste todos los ejercicios de escritura.</p>' +
+                '<a href="' + nextUrl + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none; margin-right:12px;">Siguiente submódulo →</a>' +
+                '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--g200); color:var(--g700); font-size:15px; font-weight:700; text-decoration:none;">Volver al Dashboard</a>';
+        } else {
+            wrapper.innerHTML =
+                '<p style="font-size:22px; font-weight:800; color:var(--primary); margin:0 0 8px 0;">✅ ¡Ejercicios terminados!</p>' +
+                '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">Completaste todos los ejercicios disponibles.</p>' +
+                '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none;">Volver al Dashboard</a>';
+        }
+
+        document.querySelector('#prompt-container').parentNode.appendChild(wrapper);
+    }
 
     const showFeedback = (data) => {
         feedbackPanel.style.display = 'block';
@@ -49,20 +97,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.aprobado) {
             completed.add(EJERCICIOS[currentIndex].id);
+            indicator.textContent = `Ejercicio ${currentIndex + 1} de ${totalExercises} · ${completed.size} aprobados`;
         }
 
-        if (data.submodulo_completado) {
-            btnNext.textContent = 'Volver al Dashboard';
+        if (completed.size >= totalExercises) {
+            btnNext.textContent = '🎉 Submódulo completado →';
             btnNext.style.display = 'inline-block';
-            btnNext.onclick = () => { window.location.href = DASHBOARD_URL; };
-        } else if (currentIndex < totalExercises - 1) {
-            btnNext.textContent = 'Siguiente ejercicio →';
-            btnNext.style.display = 'inline-block';
-            btnNext.onclick = () => loadExercise(currentIndex + 1);
-        } else if (!data.aprobado) {
-            btnSubmit.textContent = 'Reintentar';
-            btnSubmit.disabled = false;
-            textarea.disabled = false;
+            btnNext.onclick = () => showCompletionMessage(data.submodulo_completado);
+        } else {
+            const next = findNextPending(currentIndex);
+            if (next !== -1 && data.aprobado) {
+                btnNext.textContent = 'Siguiente ejercicio →';
+                btnNext.style.display = 'inline-block';
+                btnNext.onclick = () => loadExercise(next);
+            } else if (!data.aprobado) {
+                btnSubmit.textContent = 'Reintentar';
+                btnSubmit.disabled = false;
+                textarea.disabled = false;
+            }
         }
     };
 
@@ -97,5 +149,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    loadExercise(0);
+    loadExercise(currentIndex);
 });

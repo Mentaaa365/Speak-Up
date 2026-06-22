@@ -46,6 +46,15 @@ class VocabularyLearningView(LoginRequiredMixin, View):
 
         ejercicios_qs = submodulo.ejercicios.all()
 
+        passed_ids = set(
+            IntentoEjercicio.objects.filter(
+                perfil=perfil,
+                ejercicio__submodulo=submodulo,
+                puntaje__gte=80,
+                activo=True,
+            ).values_list('ejercicio_id', flat=True)
+        )
+
         context = {
             'submodulo': submodulo,
             'ejercicios': ejercicios_qs,
@@ -53,6 +62,7 @@ class VocabularyLearningView(LoginRequiredMixin, View):
                 {'id': e.pk, 'texto_objetivo': e.texto_objetivo}
                 for e in ejercicios_qs
             ]),
+            'passed_ids_json': json.dumps(list(passed_ids)),
             'guardar_url': reverse('progress:guardar_ejercicio'),
         }
         return render(request, self.template_name, context)
@@ -212,13 +222,17 @@ class TurnoEntrevistaView(LoginRequiredMixin, View):
             return JsonResponse({'error': 'session_not_active'}, status=409)
 
         nivel_codigo = sesion.submodulo.nivel.codigo
-        client = AIInterviewClient()
 
-        # First turn: start_session; subsequent turns: next_turn_for
-        if not historial:
-            respuesta_agente = client.start_session(nivel_codigo)
-        else:
-            respuesta_agente = client.next_turn_for(nivel_codigo, historial, transcripcion)
+        try:
+            client = AIInterviewClient()
+            if not historial:
+                respuesta_agente = client.start_session(nivel_codigo)
+            else:
+                respuesta_agente = client.next_turn_for(nivel_codigo, historial, transcripcion)
+        except EnvironmentError:
+            return JsonResponse({'error': 'ANTHROPIC_API_KEY no configurada en el servidor.'}, status=503)
+        except Exception:
+            return JsonResponse({'error': 'Error al conectar con la IA. Intentá de nuevo.'}, status=502)
 
         # Build the updated historial
         nuevo_historial = list(historial)
@@ -318,12 +332,22 @@ class WritingLearningView(LoginRequiredMixin, View):
 
         ejercicios_qs = submodulo.ejercicios.all()
 
+        passed_ids = set(
+            IntentoEjercicio.objects.filter(
+                perfil=perfil,
+                ejercicio__submodulo=submodulo,
+                puntaje__gte=80,
+                activo=True,
+            ).values_list('ejercicio_id', flat=True)
+        )
+
         context = {
             'submodulo': submodulo,
             'ejercicios_json': json.dumps([
                 {'id': e.pk, 'prompt': e.texto_objetivo}
                 for e in ejercicios_qs
             ]),
+            'passed_ids_json': json.dumps(list(passed_ids)),
             'nivel_codigo': perfil.nivel_mcer.codigo,
         }
         return render(request, self.template_name, context)

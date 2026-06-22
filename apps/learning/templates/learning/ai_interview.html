@@ -73,11 +73,17 @@
                     <span id="record-btn-label">Iniciar entrevista</span>
                 </button>
 
-                {# Submit current turn manually #}
-                <button id="submit-turn-btn"
-                        style="display: none; width: 100%; padding: 11px 20px; border-radius: 9px; border: 1.5px solid var(--primary); background: transparent; color: var(--primary); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-bottom: 10px;">
-                    Finalizar respuesta
-                </button>
+                {# Submit / re-record buttons #}
+                <div style="display: none; gap: 10px; margin-bottom: 10px;" id="turn-actions">
+                    <button id="regrabar-btn"
+                            style="flex: 1; padding: 11px 20px; border-radius: 9px; border: 1.5px solid var(--warning); background: transparent; color: var(--warning); font-size: 14px; font-weight: 700; cursor: pointer;">
+                        🔄 Regrabar
+                    </button>
+                    <button id="submit-turn-btn"
+                            style="flex: 1; padding: 11px 20px; border-radius: 9px; border: 1.5px solid var(--primary); background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer;">
+                        Enviar respuesta →
+                    </button>
+                </div>
 
                 {# Finalize interview #}
                 <button id="finalizar-btn"
@@ -159,12 +165,12 @@
 {# ── JS globals (must come before ai_interview.js) ── #}
 {% csrf_token %}
 <script>
-  const SESION_ID        = {{ sesion_id }};
-  const NIVEL_CODIGO     = "{{ nivel_codigo }}";
-  const TTS_RATE         = {{ tts_rate }};
-  const TIEMPO_RESPUESTA = {{ tiempo_respuesta }};
-  const TURNO_URL        = "{{ turno_url }}";
-  const FINALIZAR_URL    = "{{ finalizar_url }}";
+  var SESION_ID        = {{ sesion_id|default:"null" }};
+  var NIVEL_CODIGO     = "{{ nivel_codigo }}";
+  var TTS_RATE         = {{ tts_rate }};
+  var TIEMPO_RESPUESTA = {{ tiempo_respuesta }};
+  var TURNO_URL        = "{{ turno_url }}";
+  var FINALIZAR_URL    = "{{ finalizar_url }}";
 </script>
-<script src="{% static 'learning/js/ai_interview.js' %}"></script>
+<script src="{% static 'learning/js/ai_interview.js' %}?v=9"></script>
 {% endblock content %}

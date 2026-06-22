@@ -74,6 +74,26 @@ class AIInterviewClient:
             "redirection strictly; encourage richer responses."
         )
 
+    _EVAL_CRITERIA = {
+        "A1": (
+            "The student is CEFR A1 (beginner). Score generously relative to A1 expectations: "
+            "simple present tense, basic vocabulary (food, family, routine, numbers), short sentences. "
+            "A student who answers in complete simple sentences with mostly correct grammar for A1 "
+            "should score 80-90. Only penalize for missing verbs, incomprehensible answers, "
+            "or inability to form basic sentences. Minor article errors (a/the) are normal at A1."
+        ),
+        "A2": (
+            "The student is CEFR A2 (elementary). Score relative to A2 expectations: "
+            "past tense, comparatives, simple connectors (and, but, because). "
+            "A student who communicates clearly with A2-appropriate grammar should score 80-90."
+        ),
+        "B1": (
+            "The student is CEFR B1 (intermediate). Score relative to B1 expectations: "
+            "varied tenses, opinion expressions, hypotheticals, connectors (however, although). "
+            "Evaluate fluency, lexical range, and coherence more strictly than lower levels."
+        ),
+    }
+
     def _eval_prompt(self, nivel_codigo: str, cats: list[str]) -> str:
         fields = ", ".join(f'"{c}": <int 0-100>' for c in cats)
         extra = (
@@ -81,8 +101,10 @@ class AIInterviewClient:
             if nivel_codigo == "B1"
             else ""
         )
+        criteria = self._EVAL_CRITERIA.get(nivel_codigo, self._EVAL_CRITERIA["A1"])
         return (
             "You evaluate an English oral interview transcript. "
+            f"{criteria} "
             f"Return ONLY valid JSON, no prose, with EXACTLY these keys for level {nivel_codigo}: "
             f"{{{fields}{extra}}}. "
             "Each numeric value is an integer 0-100. Do not add any other key."

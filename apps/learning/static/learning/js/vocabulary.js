@@ -29,13 +29,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ─── Estado de sesión ─────────────────────────────────────────────────────
-    let currentIndex    = 0;   // índice en EXERCISES
-    let totalCompleted  = 0;   // ejercicios aprobados (puntaje >= 80) esta sesión
     let isRecording     = false;
     let lastTranscript  = '';
     let ttsPlayCount    = 0;
     const passedSet     = new Set();
     const wordErrors    = new Map();
+
+    const _passedIds = (typeof PASSED_IDS !== 'undefined' && Array.isArray(PASSED_IDS)) ? PASSED_IDS : [];
+    _passedIds.forEach(id => {
+        const idx = EXERCISES.findIndex(e => e.id === id);
+        if (idx !== -1) passedSet.add(idx);
+    });
+
+    let totalCompleted  = passedSet.size;
+    let currentIndex    = EXERCISES.findIndex((_, i) => !passedSet.has(i));
+    if (currentIndex === -1) currentIndex = 0;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  NAVEGACIÓN — Muestra / oculta cards
@@ -95,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ttsBtn) {
             ttsBtn.disabled      = false;
             ttsBtn.style.opacity = '1';
-            ttsBtn.innerHTML     = '🔊 Escuchar modelo TTS (1.0×)';
+            ttsBtn.innerHTML     = '🔊 Escuchar oración';
         }
 
         // Resetear estado local

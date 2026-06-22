@@ -24,7 +24,7 @@ from apps.question_bank.models import Question, Option
 #  Valores válidos (según models.py)
 # ─────────────────────────────────────────────
 LEVELS_VALIDOS = {'DIAG', 'A1', 'A2', 'B1'}
-TYPES_VALIDOS  = {'CHOICE', 'LISTENING', 'SPEAKING'}
+TYPES_VALIDOS  = {'CHOICE', 'LISTENING', 'SPEAKING','WRITING'}
 RUTA_CSV       = os.path.join(os.path.dirname(__file__), 'preguntas.csv')
 
 

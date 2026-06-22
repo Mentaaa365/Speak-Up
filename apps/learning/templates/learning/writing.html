@@ -65,9 +65,11 @@
 {% csrf_token %}
 <script>
     const EJERCICIOS = JSON.parse('{{ ejercicios_json|escapejs }}');
+    const PASSED_IDS = {{ passed_ids_json|safe }};
     const EVALUAR_URL = "{% url 'learning:writing_evaluar' %}";
     const DASHBOARD_URL = "{% url 'progress:dashboard' %}";
+    const MI_NIVEL_URL = "{% url 'learning:router_nivel' %}";
 </script>
 <script src="{% static 'shared/js/fetch-retry.js' %}"></script>
-<script src="{% static 'learning/js/writing.js' %}"></script>
+<script src="{% static 'learning/js/writing.js' %}?v=2"></script>
 {% endblock content %}

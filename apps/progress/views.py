@@ -12,6 +12,7 @@ from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER, Submodulo, Ejercicio
 from apps.exams.models import ExamenIntento
 from apps.progress.models import IntentoEjercicio
+from apps.learning.models import SesionEntrevista
 from apps.learning.prosody_evaluator import ProsodyEvaluator
 from apps.learning.writing_evaluator import AIEvaluationError
 from apps.shared.utils import (
@@ -121,35 +122,44 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         submodulo_anterior_completado = True
 
         for submodulo in nivel_activo.submodulos.all().order_by('orden'):
-            total_ej  = submodulo.ejercicios.count()
-            aprobados = IntentoEjercicio.objects.filter(
-                perfil=perfil,
-                ejercicio__submodulo=submodulo,
-                puntaje__gte=80,
-                activo=True,
-            ).count()
-
-            progreso_sub = int((aprobados / total_ej) * 100) if total_ej > 0 else 0
-            completado   = total_ej > 0 and aprobados >= total_ej
-
             nombre, icono, url = TIPO_A_NOMBRE.get(
                 submodulo.tipo,
                 (submodulo.tipo.capitalize(), '📌', '#')
             )
 
-            # 🔥 LÓGICA CORREGIDA
+            if submodulo.tipo == 'entrevista':
+                aprobadas = SesionEntrevista.objects.filter(
+                    perfil=perfil,
+                    submodulo=submodulo,
+                    estado='COMPLETADA',
+                    puntaje__gte=80,
+                ).count()
+                completado   = aprobadas >= 1
+                progreso_sub = 100 if completado else 0
+            else:
+                total_ej  = submodulo.ejercicios.count()
+                aprobados = IntentoEjercicio.objects.filter(
+                    perfil=perfil,
+                    ejercicio__submodulo=submodulo,
+                    puntaje__gte=80,
+                    activo=True,
+                ).count()
+                progreso_sub = int((aprobados / total_ej) * 100) if total_ej > 0 else 0
+                completado   = total_ej > 0 and aprobados >= total_ej
+
             if completado:
                 estado  = 'completado'
-                detalle = f'Completado al 100% con éxito.'
+                detalle = 'Completado al 100% con éxito.'
             elif submodulo_anterior_completado:
-                # Si el anterior está completado (o si es el primer submódulo del bucle), se activa
                 estado  = 'activo'
-                detalle = f'{aprobados} de {total_ej} ejercicios superados.'
+                if submodulo.tipo == 'entrevista':
+                    detalle = 'Completa 1 entrevista oral con IA.'
+                else:
+                    detalle = f'{aprobados} de {total_ej} ejercicios superados.'
             else:
                 estado  = 'bloqueado'
                 detalle = 'Completa el submódulo anterior para desbloquear.'
 
-            # Actualizamos la variable para evaluar el siguiente submódulo en el ciclo
             submodulo_anterior_completado = completado
 
             submodulos_data.append({

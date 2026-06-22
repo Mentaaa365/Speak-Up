@@ -17,6 +17,7 @@
 
         <nav style="display: flex; gap: 8px; flex-wrap: wrap;">
             <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #FFFFFF; color: var(--primary);">Vocabulario</span>
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Escritura</span>
             <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Música</span>
             <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Entrevista IA 🔒</span>
         </nav>
@@ -40,9 +41,8 @@
 
                 <div>
                     <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 20px; margin-bottom: 16px;">
-                        <header style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                        <header style="margin-bottom: 12px;">
                             <span style="font-size: 13px; color: var(--g400); font-weight: 600;">Ejercicio {{ forloop.counter }} / {{ ejercicios|length }}</span>
-                            <span style="font-size: 11px; background: var(--primary-light); color: var(--primary); padding: 2px 8px; border-radius: 20px; font-weight: 700;">TTS velocidad 1.0×</span>
                         </header>
                         {% if ejercicio.contenido_json.imagen_url %}
                         <img src="{{ ejercicio.contenido_json.imagen_url }}" alt="{{ ejercicio.texto_objetivo }}" style="width:100%; max-height:200px; object-fit:cover; border-radius:8px; margin-bottom:12px;" loading="lazy">
@@ -50,7 +50,7 @@
                         <p id="target-word" style="font-size: 28px; font-weight: 800; color: var(--g800); margin: 0 0 16px 0; word-break: break-word;" data-ejercicio-id="{{ ejercicio.pk }}">"{{ ejercicio.texto_objetivo }}"</p>
 
                         <button id="tts-btn" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 16px; border-radius: 9px; border: 1.5px solid var(--g200); background: #FFFFFF; font-size: 13.5px; color: var(--g600); font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                            <span>🔊</span> Escuchar 
+                            <span>🔊</span> Escuchar oración
                         </button>
                     </div>
 
@@ -103,10 +103,11 @@
 
 <script>
   const EXERCISES = {{ ejercicios_json|safe }};
+  const PASSED_IDS = {{ passed_ids_json|safe }};
   const GUARDAR_URL = "{{ guardar_url }}";
   const DASHBOARD_URL = "{% url 'progress:dashboard' %}";
   const PRIORITIZE_URL = "{% url 'learning:vocabulary_prioritize' %}";
 </script>
 <script src="{% static 'shared/js/fetch-retry.js' %}"></script>
-<script src="{% static 'learning/js/vocabulary.js' %}"></script>
+<script src="{% static 'learning/js/vocabulary.js' %}?v=3"></script>
 {% endblock content %}

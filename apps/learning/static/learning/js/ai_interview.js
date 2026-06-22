@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const recordBtn          = document.getElementById('record-btn');
     const recordBtnIcon      = document.getElementById('record-btn-icon');
     const recordBtnLabel     = document.getElementById('record-btn-label');
+    const turnActions        = document.getElementById('turn-actions');
+    const regrabarBtn        = document.getElementById('regrabar-btn');
     const submitTurnBtn      = document.getElementById('submit-turn-btn');
     const finalizarBtn       = document.getElementById('finalizar-btn');
     const resultadoPanel     = document.getElementById('resultado-panel');
@@ -71,8 +73,13 @@ document.addEventListener('DOMContentLoaded', () => {
         errorPanel.style.display = 'none';
     };
 
+    // ─── Markdown cleanup ──────────────────────────────────────────────────────
+    const stripMarkdown = (text) =>
+        text.replace(/[*_#`~>]+/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
+
     // ─── Chat bubbles ─────────────────────────────────────────────────────────
     const appendMessage = (role, text) => {
+        text = stripMarkdown(text);
         if (chatPlaceholder) chatPlaceholder.style.display = 'none';
         const bubble  = document.createElement('div');
         const isAgent = role === 'assistant';
@@ -95,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── TTS ──────────────────────────────────────────────────────────────────
     const speak = (text, onEnd) => {
         window.speechSynthesis.cancel();
-        const utter   = new SpeechSynthesisUtterance(text);
+        const utter   = new SpeechSynthesisUtterance(stripMarkdown(text));
         utter.lang    = 'en-US';
         utter.rate    = TTS_RATE;
         utter.pitch   = 1.0;
@@ -109,18 +116,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── Countdown timer ──────────────────────────────────────────────────────
     const startCountdown = () => {
+        stopCountdown();
         let timeLeft = TIEMPO_RESPUESTA;
         countdownEl.textContent = `${timeLeft}s`;
         countdownEl.style.color = 'var(--primary)';
 
         countdownInterval = setInterval(() => {
             timeLeft--;
+            if (timeLeft < 0) timeLeft = 0;
             countdownEl.textContent = `${timeLeft}s`;
             if (timeLeft <= 10) countdownEl.style.color = 'var(--danger)';
             if (timeLeft <= 0) {
                 clearInterval(countdownInterval);
                 countdownInterval = null;
-                if (isRecording && !isBusy) submitCurrentTurn();
+                if (isRecording && !isBusy) pauseForReview();
             }
         }, 1000);
     };
@@ -193,18 +202,34 @@ document.addEventListener('DOMContentLoaded', () => {
         _setRecordingUI(false);
     };
 
+    // ─── Pause for review (user decides: re-record or submit) ──────────────
+    const pauseForReview = () => {
+        stopSTT();
+        if (!currentTranscript.trim()) return;
+        turnActions.style.display   = 'flex';
+        recordBtn.style.display     = 'none';
+    };
+
+    const regrabar = () => {
+        stopSTT();
+        currentTranscript = '';
+        transcripcionEl.innerHTML = '<span style="color:var(--g400);">Escuchando...</span>';
+        startSTT();
+        turnActions.style.display = 'flex';
+        recordBtn.style.display   = 'none';
+    };
+
     // ─── Recording UI state ───────────────────────────────────────────────────
     const _setRecordingUI = (grabando) => {
         if (grabando) {
-            recordBtn.style.background  = 'var(--danger)';
-            recordBtnIcon.textContent   = '🔴';
-            recordBtnLabel.textContent  = 'Escuchando...';
-            submitTurnBtn.style.display = 'block';
+            recordBtn.style.display     = 'none';
+            turnActions.style.display   = 'flex';
         } else {
+            recordBtn.style.display     = 'flex';
             recordBtn.style.background  = 'var(--secondary)';
             recordBtnIcon.textContent   = '🎙️';
             recordBtnLabel.textContent  = historial.length > 0 ? 'Grabar respuesta' : 'Iniciar entrevista';
-            submitTurnBtn.style.display = 'none';
+            turnActions.style.display   = 'none';
         }
     };
 
@@ -213,7 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isBusy) return;
         const transcript = currentTranscript.trim();
         stopSTT();
-        if (transcript) appendMessage('user', transcript);
+        turnActions.style.display = 'none';
+        recordBtn.style.display   = 'flex';
+        if (!transcript) return;
+        appendMessage('user', transcript);
         sendTurn(transcript);
     };
 
@@ -237,7 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }),
         })
         .then(r => {
-            if (!r.ok) return r.json().then(d => Promise.reject(d));
+            if (!r.ok) {
+                return r.text().then(body => {
+                    try { return Promise.reject(JSON.parse(body)); }
+                    catch (_) { return Promise.reject({ error: `Error del servidor (${r.status})` }); }
+                });
+            }
             return r.json();
         })
         .then(data => {
@@ -251,10 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             isBusy = false;
             recordBtn.disabled = false;
+            recordBtn.style.background = 'var(--secondary)';
             transcripcionEl.innerHTML =
                 '<span style="color:var(--g400);">Tu voz aparecerá aquí mientras hablás...</span>';
 
-            // Auto-start STT after TTS finishes speaking
             speak(data.respuesta, () => {
                 if (!isBusy && !interviewFinished) startSTT();
             });
@@ -262,7 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(err => {
             isBusy = false;
             recordBtn.disabled = false;
-            showError(err?.error || 'Error de red. Intentá de nuevo.');
+            recordBtn.style.background = 'var(--secondary)';
+            recordBtnIcon.textContent  = '🎙️';
+            recordBtnLabel.textContent = 'Iniciar entrevista';
+            showError(err?.error || 'Error de conexión. Intentá de nuevo.');
         });
     };
 
@@ -340,9 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isBusy || interviewFinished) return;
 
         if (historial.length === 0) {
-            // First click: initiate session — server calls start_session
-            recordBtnLabel.textContent = 'Iniciando...';
+            recordBtnLabel.textContent = 'Conectando con IA... espere';
+            recordBtnIcon.textContent  = '⏳';
             recordBtn.disabled         = true;
+            recordBtn.style.background = 'var(--g400)';
             sendTurn('');
             return;
         }
@@ -356,7 +393,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     submitTurnBtn.addEventListener('click', () => {
-        if (isRecording && !isBusy) submitCurrentTurn();
+        if (!isBusy) submitCurrentTurn();
+    });
+
+    regrabarBtn.addEventListener('click', () => {
+        if (!isBusy) regrabar();
     });
 
     finalizarBtn.addEventListener('click', () => {

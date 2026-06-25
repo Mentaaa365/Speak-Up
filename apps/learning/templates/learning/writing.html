@@ -4,8 +4,8 @@
 {% block content %}
 <div style="padding: 40px; max-width: 800px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">✍️ Expresión Escrita</h1>
-        <a href="{% url 'progress:dashboard' %}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Volver al Dashboard</a>
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0;">✍️ Writing</h1>
+        <a href="{% url 'progress:dashboard' %}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Back to Dashboard</a>
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
@@ -23,15 +23,15 @@
 
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <button id="btn-submit" style="padding: 12px 28px; border-radius: 10px; border: none; background: var(--primary); color: #FFFFFF; font-weight: 700; cursor: pointer; font-size: 15px;">
-            Evaluar respuesta
+            Submit answer
         </button>
         <button id="btn-next" style="padding: 12px 28px; border-radius: 10px; border: none; background: var(--secondary); color: #FFFFFF; font-weight: 700; cursor: pointer; font-size: 15px; display: none;">
-            Siguiente ejercicio →
+            Next exercise →
         </button>
     </div>
 
     <div id="feedback-panel" style="display: none; background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 24px;">
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--g800); margin: 0 0 16px 0;">Resultado de la evaluación</h3>
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--g800); margin: 0 0 16px 0;">Evaluation results</h3>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
             <div style="text-align: center; padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--g200);">
                 <p style="font-size: 11px; font-weight: 700; color: var(--g500); margin: 0 0 4px 0; text-transform: uppercase;">Grammar</p>
@@ -48,7 +48,7 @@
         </div>
         <div id="score-total-bar" style="margin-bottom: 16px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span style="font-size: 13px; font-weight: 700; color: var(--g600);">Puntaje global</span>
+                <span style="font-size: 13px; font-weight: 700; color: var(--g600);">Overall score</span>
                 <span id="score-total" style="font-size: 13px; font-weight: 800; color: var(--g800);">-</span>
             </div>
             <div style="height: 8px; background: var(--g200); border-radius: 4px; overflow: hidden;">

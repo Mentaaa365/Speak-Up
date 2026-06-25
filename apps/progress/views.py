@@ -111,10 +111,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         #    Si la BD todavía no tiene submódulos, muestra lista vacía sin romper.
         # ── Barra 3: Submódulos del nivel activo ─────────────────────────────
         TIPO_A_NOMBRE = {
-            'vocabulario': ('Vocabulario y Lectura',       '📖', reverse_lazy('learning:vocabulary')),
-            'musica':      ('Actividades Musicales (LRC)', '🎵', reverse_lazy('learning:music')),
-            'entrevista':  ('Entrevistas Orales con IA',   '🤖', reverse_lazy('learning:ai_interview')),
-            'writing':     ('Expresión Escrita con IA',    '✍️', reverse_lazy('learning:writing')),
+            'vocabulario': ('Vocabulary and Reading',  '📖', reverse_lazy('learning:vocabulary')),
+            'musica':      ('Music Activities (LRC)',  '🎵', reverse_lazy('learning:music')),
+            'entrevista':  ('AI Oral Interviews',      '🤖', reverse_lazy('learning:ai_interview')),
+            'writing':     ('AI Writing',              '✍️', reverse_lazy('learning:writing')),
         }
         submodulos_data = []
 
@@ -149,16 +149,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
             if completado:
                 estado  = 'completado'
-                detalle = 'Completado al 100% con éxito.'
+                detalle = 'Completed at 100%.'
             elif submodulo_anterior_completado:
                 estado  = 'activo'
                 if submodulo.tipo == 'entrevista':
-                    detalle = 'Completa 1 entrevista oral con IA.'
+                    detalle = 'Complete 1 AI oral interview.'
                 else:
-                    detalle = f'{aprobados} de {total_ej} ejercicios superados.'
+                    detalle = f'{aprobados} of {total_ej} exercises passed.'
             else:
                 estado  = 'bloqueado'
-                detalle = 'Completa el submódulo anterior para desbloquear.'
+                detalle = 'Complete the previous submodule to unlock.'
 
             submodulo_anterior_completado = completado
 
@@ -285,10 +285,10 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 
         # ── Barra 3: Por submódulo del nivel activo ───────────────────────────
         TIPO_A_NOMBRE = {
-            'vocabulario': ('Vocabulario y Lectura',       '📖'),
-            'musica':      ('Actividades Musicales (LRC)', '🎵'),
-            'entrevista':  ('Entrevistas Orales con IA',   '🤖'),
-            'writing':     ('Expresión Escrita con IA',    '✍️'),
+            'vocabulario': ('Vocabulary and Reading',  '📖'),
+            'musica':      ('Music Activities (LRC)',  '🎵'),
+            'entrevista':  ('AI Oral Interviews',      '🤖'),
+            'writing':     ('AI Writing',              '✍️'),
         }
         submodulos_data = []
 

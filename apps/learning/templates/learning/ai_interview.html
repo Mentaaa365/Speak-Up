@@ -9,15 +9,15 @@
         <header style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
             <div style="flex: 1; min-width: 240px;">
                 <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0 0 4px 0; font-weight: 600;">
-                    Nivel {{ nivel.codigo }} · Submódulo Entrevista IA · Conversación oral adaptativa
+                    Level {{ nivel.codigo }} · AI Interview Submodule · Adaptive oral conversation
                 </p>
                 <h3 style="color: #FFFFFF; font-size: 22px; font-weight: 800; margin: 0;">
-                    Entrevista IA — Nivel {{ nivel.codigo }}
+                    AI Interview — Level {{ nivel.codigo }}
                 </h3>
             </div>
             <aside style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <span style="background: rgba(255,255,255,0.2); color: #FFFFFF; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
-                    {{ tiempo_respuesta }}s por respuesta
+                    {{ tiempo_respuesta }}s per response
                 </span>
                 <span style="background: rgba(255,255,255,0.2); color: #FFFFFF; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
                     {{ nivel.codigo }}
@@ -26,9 +26,9 @@
         </header>
 
         <nav style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Vocabulario</span>
-            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Música</span>
-            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #FFFFFF; color: var(--primary);">Entrevista IA</span>
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Vocabulary</span>
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: rgba(255,255,255,0.12); color: #FFFFFF;">Music</span>
+            <span style="padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; background: #FFFFFF; color: var(--primary);">AI Interview</span>
         </nav>
     </div>
 
@@ -49,20 +49,20 @@
             <div>
                 {# Countdown #}
                 <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 20px; margin-bottom: 16px; text-align: center;">
-                    <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 8px 0;">Tiempo restante</p>
+                    <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 8px 0;">Time remaining</p>
                     <div id="countdown"
                          style="font-size: 52px; font-weight: 900; color: var(--primary); line-height: 1; margin-bottom: 4px;">
                         {{ tiempo_respuesta }}s
                     </div>
-                    <p style="font-size: 11px; color: var(--g400); margin: 0;">El turno se envía automáticamente al llegar a 0</p>
+                    <p style="font-size: 11px; color: var(--g400); margin: 0;">Turn auto-submits when reaching 0</p>
                 </div>
 
                 {# Live transcription display #}
                 <div style="background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 16px; margin-bottom: 16px;">
-                    <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 8px 0;">Transcripción en tiempo real</p>
+                    <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 8px 0;">Live transcription</p>
                     <div id="transcripcion-display"
                          style="min-height: 56px; font-size: 14px; color: var(--g700); font-style: italic; line-height: 1.5;">
-                        <span style="color: var(--g400);">Tu voz aparecerá aquí mientras hablás...</span>
+                        <span style="color: var(--g400);">Your voice will appear here as you speak...</span>
                     </div>
                 </div>
 
@@ -70,25 +70,25 @@
                 <button id="record-btn"
                         style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 20px; border-radius: 9px; border: none; background: var(--secondary); color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-bottom: 10px;">
                     <span id="record-btn-icon">🎙️</span>
-                    <span id="record-btn-label">Iniciar entrevista</span>
+                    <span id="record-btn-label">Start interview</span>
                 </button>
 
                 {# Submit / re-record buttons #}
                 <div style="display: none; gap: 10px; margin-bottom: 10px;" id="turn-actions">
                     <button id="regrabar-btn"
                             style="flex: 1; padding: 11px 20px; border-radius: 9px; border: 1.5px solid var(--warning); background: transparent; color: var(--warning); font-size: 14px; font-weight: 700; cursor: pointer;">
-                        🔄 Regrabar
+                        🔄 Re-record
                     </button>
                     <button id="submit-turn-btn"
                             style="flex: 1; padding: 11px 20px; border-radius: 9px; border: 1.5px solid var(--primary); background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer;">
-                        Enviar respuesta →
+                        Send response →
                     </button>
                 </div>
 
                 {# Finalize interview #}
                 <button id="finalizar-btn"
                         style="display: none; width: 100%; padding: 11px 20px; border-radius: 9px; border: none; background: var(--warning); color: #FFFFFF; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
-                    Finalizar entrevista
+                    End interview
                 </button>
             </div>
 
@@ -99,14 +99,14 @@
                        style="background: var(--primary-light); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; display: flex; gap: 12px; align-items: flex-start;">
                     <span style="font-size: 20px;">💡</span>
                     <div style="font-size: 12px; color: var(--primary); font-weight: 600; line-height: 1.5;">
-                        <p style="margin: 0 0 6px 0;">Hablá con claridad y en inglés. El agente evaluará:</p>
+                        <p style="margin: 0 0 6px 0;">Speak clearly and in English. The agent will evaluate:</p>
                         <ul style="margin: 0; padding-left: 16px;">
-                            <li>Pronunciación y fluidez</li>
-                            <li>Vocabulario apropiado al nivel</li>
+                            <li>Pronunciation and fluency</li>
+                            <li>Level-appropriate vocabulary</li>
                             {% if nivel_codigo == 'B1' %}
-                            <li>Coherencia y riqueza léxica</li>
+                            <li>Coherence and lexical range</li>
                             {% elif nivel_codigo == 'A2' %}
-                            <li>Coherencia del discurso</li>
+                            <li>Speech coherence</li>
                             {% endif %}
                         </ul>
                     </div>
@@ -116,11 +116,11 @@
                 <div id="resultado-panel"
                      style="display: none; background: #FFFFFF; border-radius: 12px; border: 1px solid var(--g200); padding: 20px;">
 
-                    <p style="font-size: 13px; font-weight: 700; color: var(--g700); margin: 0 0 14px 0;">Resultados de tu entrevista</p>
+                    <p style="font-size: 13px; font-weight: 700; color: var(--g700); margin: 0 0 14px 0;">Your interview results</p>
 
                     {# Global score #}
                     <div style="text-align: center; margin-bottom: 20px;">
-                        <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 4px 0;">Puntaje global</p>
+                        <p style="font-size: 12px; color: var(--g500); font-weight: 600; margin: 0 0 4px 0;">Overall score</p>
                         <div id="puntaje-display"
                              style="font-size: 48px; font-weight: 900; color: var(--primary); line-height: 1;">
                             —
@@ -133,20 +133,20 @@
 
                     {# Suggestions (B1 only) #}
                     <div id="sugerencias-display" style="display: none; background: var(--g50); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-                        <p style="font-size: 12px; font-weight: 700; color: var(--g600); margin: 0 0 6px 0;">Sugerencias de mejora</p>
+                        <p style="font-size: 12px; font-weight: 700; color: var(--g600); margin: 0 0 6px 0;">Improvement suggestions</p>
                         <p id="sugerencias-text" style="font-size: 13px; color: var(--g700); margin: 0; line-height: 1.5;"></p>
                     </div>
 
                     {# Exam unlock notice #}
                     <div id="examen-notice" style="display: none; background: var(--primary-light); border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center;">
                         <p style="font-size: 13px; font-weight: 700; color: var(--primary); margin: 0;">
-                            🏆 ¡Examen desbloqueado! Todos los submódulos completados.
+                            🏆 Exam unlocked! All submodules completed.
                         </p>
                     </div>
 
                     <a href="{% url 'progress:dashboard' %}"
                        style="display: block; text-align: center; padding: 12px 20px; border-radius: 9px; background: var(--primary); color: #FFFFFF; font-size: 14px; font-weight: 700; text-decoration: none;">
-                        Volver al Dashboard
+                        Back to Dashboard
                     </a>
                 </div>
 
@@ -172,5 +172,5 @@
   var TURNO_URL        = "{{ turno_url }}";
   var FINALIZAR_URL    = "{{ finalizar_url }}";
 </script>
-<script src="{% static 'learning/js/ai_interview.js' %}?v=9"></script>
+<script src="{% static 'learning/js/ai_interview.js' %}?v=10"></script>
 {% endblock content %}

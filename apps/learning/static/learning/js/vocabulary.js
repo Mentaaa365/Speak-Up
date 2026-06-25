@@ -103,11 +103,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ttsBtn) {
             ttsBtn.disabled      = false;
             ttsBtn.style.opacity = '1';
-            ttsBtn.innerHTML     = '🔊 Escuchar oración';
+            ttsBtn.innerHTML     = '🔊 Listen to sentence';
+        }
+
+        // Resetear live transcript
+        const liveText = card.querySelector('#live-text');
+        if (liveText) {
+            liveText.textContent = 'Your voice will appear here as you speak...';
+            liveText.style.fontStyle = 'italic';
+            liveText.style.color = 'var(--g400)';
         }
 
         // Resetear estado local
         lastTranscript = '';
+        accumulatedTranscript = '';
         ttsPlayCount   = 0;
         isRecording    = false;
     };
@@ -205,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ttsPlayCount >= 2 && ttsBtn) {
             ttsBtn.disabled      = true;
             ttsBtn.style.opacity = '0.5';
-            ttsBtn.innerHTML     = '🔊 Límite de reproducciones alcanzado';
+            ttsBtn.innerHTML     = '🔊 Playback limit reached';
         }
     };
 
@@ -214,53 +223,114 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─────────────────────────────────────────────────────────────────────────
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let sttRetries = 0;
+    const MAX_STT_RETRIES = 3;
+    let currentRecognition = null;
+    let accumulatedTranscript = '';
+
+    const _updateLiveText = (card, text) => {
+        const el = card.querySelector('#live-text');
+        if (el) {
+            el.textContent = text || '…';
+            el.style.fontStyle = text ? 'normal' : 'italic';
+            el.style.color = text ? 'var(--g800)' : 'var(--g400)';
+        }
+    };
 
     const startRecording = (card) => {
         if (!SpeechRecognition) {
-            _showError(card, 'Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.');
+            _showError(card, 'Your browser does not support speech recognition. Use Chrome or Edge.');
             return;
         }
         if (isRecording) return;
 
         isRecording = true;
+        sttRetries  = 0;
+        accumulatedTranscript = '';
+        _updateLiveText(card, '');
         _setRecordingUI(card, true);
+        _launchSTT(card);
+    };
 
-        const recognition           = new SpeechRecognition();
-        recognition.lang            = 'en-US';
-        recognition.interimResults  = false;
+    const _launchSTT = (card) => {
+        const recognition       = new SpeechRecognition();
+        recognition.lang        = 'en-US';
+        recognition.interimResults = true;
+        recognition.continuous     = true;
         recognition.maxAlternatives = 1;
+        currentRecognition = recognition;
 
-        const safetyTimer = setTimeout(() => recognition.stop(), 8000);
-
-        recognition.onstart = () => {
-            _setRecordingUI(card, true);
-        };
+        const safetyTimer = setTimeout(() => {
+            if (isRecording) {
+                recognition.stop();
+                const transcript = accumulatedTranscript.trim();
+                if (transcript) {
+                    isRecording = false;
+                    lastTranscript = transcript;
+                    _setRecordingUI(card, false);
+                    submitAttempt(transcript);
+                }
+            }
+        }, 10000);
 
         recognition.onresult = (event) => {
-            clearTimeout(safetyTimer);
-            const transcript = event.results[0][0].transcript.trim();
-            lastTranscript   = transcript;
-            isRecording      = false;
-            _setRecordingUI(card, false);
-            submitAttempt(transcript);
+            let interim = '';
+            let finalText = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const t = event.results[i][0].transcript;
+                if (event.results[i].isFinal) finalText += t + ' ';
+                else interim += t;
+            }
+            if (finalText) accumulatedTranscript += finalText;
+            _updateLiveText(card, (accumulatedTranscript + interim).trim());
         };
 
         recognition.onerror = (e) => {
             clearTimeout(safetyTimer);
+            if ((e.error === 'network' || e.error === 'aborted') && sttRetries < MAX_STT_RETRIES) {
+                sttRetries++;
+                setTimeout(() => { if (isRecording) _launchSTT(card); }, 300);
+                return;
+            }
+            if (e.error === 'no-speech') return;
             isRecording = false;
+            currentRecognition = null;
             _setRecordingUI(card, false);
-            _showError(card, `Error de micrófono: ${e.error}. Verificá los permisos e intentá de nuevo.`);
+            if (e.error === 'network') {
+                _showError(card, 'Voice service connection error. Check your internet and try again.');
+            } else if (e.error === 'not-allowed') {
+                _showError(card, 'Microphone permission denied. Enable it in browser settings.');
+            } else {
+                _showError(card, `Microphone error: ${e.error}. Try again.`);
+            }
         };
 
         recognition.onend = () => {
             clearTimeout(safetyTimer);
-            if (isRecording) {
+            if (isRecording && !accumulatedTranscript.trim()) {
                 isRecording = false;
+                currentRecognition = null;
                 _setRecordingUI(card, false);
             }
         };
 
         recognition.start();
+    };
+
+    const stopAndSubmit = () => {
+        if (!isRecording) return;
+        isRecording = false;
+        if (currentRecognition) {
+            try { currentRecognition.stop(); } catch (_) {}
+            currentRecognition = null;
+        }
+        const transcript = accumulatedTranscript.trim();
+        if (transcript) {
+            lastTranscript = transcript;
+            const card = document.getElementById(`ejercicio-${EXERCISES[currentIndex].id}`);
+            _setRecordingUI(card, false);
+            submitAttempt(transcript);
+        }
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -312,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => showResult(data, transcript))
         .catch(err => {
             const card = document.getElementById(`ejercicio-${ejercicio.id}`);
-            if (card) _showError(card, `Error al guardar el progreso: ${err.message}`);
+            if (card) _showError(card, `Error saving progress: ${err.message}`);
         });
     };
 
@@ -360,12 +430,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 scoreBox.style.background = 'var(--secondary-light)';
                 scoreBox.style.border     = '1px solid rgba(16,185,129,0.4)';
                 scoreMsg.style.color      = 'var(--secondary)';
-                scoreMsg.textContent      = `✅ Puntaje: ${data.puntaje}% · ¡Ejercicio superado! Pasando al siguiente...`;
+                scoreMsg.textContent      = `✅ Score: ${data.puntaje}% · Exercise passed! Moving to next...`;
             } else {
                 scoreBox.style.background = '#FFF8E1';
                 scoreBox.style.border     = '1px solid rgba(245,158,11,0.4)';
                 scoreMsg.style.color      = 'var(--warning)';
-                scoreMsg.textContent      = `⚠️ Puntaje: ${data.puntaje}% · Necesitás ≥80% · Reintento ilimitado`;
+                scoreMsg.textContent      = `⚠️ Score: ${data.puntaje}% · You need ≥80% · Unlimited retries`;
             }
         }
 
@@ -407,13 +477,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.querySelector('[style*="overflow-y: auto"]');
         const wrapper   = document.createElement('div');
         wrapper.style.cssText = 'background:#FFFFFF; border-radius:12px; border:1px solid var(--g200); padding:40px; text-align:center; margin-top:16px;';
-        const dashboardBtn = `<a href="${DASHBOARD_URL}" style="display:inline-block; margin-top:16px; padding:10px 24px; border-radius:9px; background:var(--primary); color:#FFFFFF; font-size:14px; font-weight:700; text-decoration:none;">Volver al Dashboard</a>`;
+        const dashboardBtn = `<a href="${DASHBOARD_URL}" style="display:inline-block; margin-top:16px; padding:10px 24px; border-radius:9px; background:var(--primary); color:#FFFFFF; font-size:14px; font-weight:700; text-decoration:none;">Back to Dashboard</a>`;
         wrapper.innerHTML = submoduloCompletado
-            ? `<p style="font-size:22px; font-weight:800; color:var(--secondary); margin:0 0 8px 0;">🎉 ¡Submódulo completado!</p>
-               <p style="font-size:14px; color:var(--g500); margin:0 0 0 0;">Aprobaste todos los ejercicios de vocabulario.</p>
+            ? `<p style="font-size:22px; font-weight:800; color:var(--secondary); margin:0 0 8px 0;">🎉 Submodule completed!</p>
+               <p style="font-size:14px; color:var(--g500); margin:0 0 0 0;">You passed all vocabulary exercises.</p>
                ${dashboardBtn}`
-            : `<p style="font-size:22px; font-weight:800; color:var(--primary); margin:0 0 8px 0;">✅ ¡Ejercicios terminados!</p>
-               <p style="font-size:14px; color:var(--g500); margin:0 0 0 0;">Completaste todos los ejercicios disponibles en esta sesión.</p>
+            : `<p style="font-size:22px; font-weight:800; color:var(--primary); margin:0 0 8px 0;">✅ Exercises completed!</p>
+               <p style="font-size:14px; color:var(--g500); margin:0 0 0 0;">You completed all available exercises in this session.</p>
                ${dashboardBtn}`;
 
         if (container) container.appendChild(wrapper);
@@ -433,16 +503,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (grabando) {
             micIcon.style.background    = 'var(--danger)';
             micIcon.style.boxShadow     = '0 4px 16px rgba(239,68,68,0.5)';
-            recordStatus.textContent    = 'Escuchando... 🔴';
+            recordStatus.textContent    = '🔴 Listening... Tap to submit';
             recordStatus.style.color    = 'var(--danger)';
             recordBox.style.borderColor = 'var(--danger)';
-            recordBox.style.cursor      = 'not-allowed';
+            recordBox.style.cursor      = 'pointer';
         } else {
             micIcon.style.background    = 'var(--secondary)';
             micIcon.style.boxShadow     = '0 4px 12px rgba(16,185,129,0.3)';
             recordStatus.textContent    = lastTranscript
-                ? '🔄 Tocá para intentar de nuevo'
-                : '🎙️ Tocá para empezar a hablar';
+                ? '🔄 Tap to try again'
+                : '🎙️ Tap to record';
             recordStatus.style.color    = 'var(--secondary)';
             recordBox.style.borderColor = 'var(--secondary)';
             recordBox.style.cursor      = 'pointer';
@@ -477,9 +547,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Record box (pero no si ya está grabando)
-        if (event.target.closest('#record-box') && !isRecording) {
-            startRecording(card);
+        // Record box: start recording or stop and submit
+        if (event.target.closest('#record-box')) {
+            if (isRecording) {
+                stopAndSubmit();
+            } else {
+                startRecording(card);
+            }
             return;
         }
 

@@ -12,12 +12,12 @@
             </div>
         </div>
 
-        <h1 style="font-size: 28px; font-weight: 800; color: var(--g800); margin: 0 0 4px 0;">¡Diagnóstico Completado!</h1>
-        <p style="font-size: 14px; color: var(--g400); margin: 0 0 32px 0;">Tus respuestas han sido procesadas de forma segura en el servidor.</p>
+        <h1 style="font-size: 28px; font-weight: 800; color: var(--g800); margin: 0 0 4px 0;">Diagnostic Completed!</h1>
+        <p style="font-size: 14px; color: var(--g400); margin: 0 0 32px 0;">Your answers have been securely processed on the server.</p>
 
         <div style="background: var(--primary-light); border: 1px solid #E0E7FF; border-radius: 18px; padding: 28px; margin-bottom: 36px;">
             <span style="font-size: 12px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
-                Nivel Asignado según Marco MCER [cite: 78]
+                Assigned Level according to CEFR Framework [cite: 78]
             </span>
             <div style="font-size: 48px; font-weight: 900; color: var(--primary-dark); margin-bottom: 4px;">
                 {{ nivel_asignado }}
@@ -30,12 +30,12 @@
             </p>
         </div>
 
-        <h3 style="font-size: 16px; font-weight: 700; color: var(--g700); text-align: left; margin: 0 0 16px 0;">Desglose de competencias evaluadas:</h3>
+        <h3 style="font-size: 16px; font-weight: 700; color: var(--g700); text-align: left; margin: 0 0 16px 0;">Assessed competencies breakdown:</h3>
         <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 40px;">
             
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">🗣️ Expresión Oral (Speaking)</span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">🗣️ Speaking</span>
                     <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_speaking }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
@@ -45,7 +45,7 @@
 
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">🎧 Comprensión Auditiva (Listening)</span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">🎧 Listening</span>
                     <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_listening }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
@@ -55,7 +55,7 @@
 
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">📖 Estructuras Gramaticales (Vocabulary)</span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">📖 Vocabulary</span>
                     <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_vocabulary }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
@@ -65,25 +65,25 @@
 
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">✍️ Expresión Escrita (Writing)</span>
+                    <span style="font-size: 14px; font-weight: 700; color: var(--g700);">✍️ Writing</span>
                     <span style="font-size: 14px; font-weight: 700; color: var(--g800);">{{ score_writing }} <span style="font-size: 11px; color: var(--g400); font-weight: 500;">/ 25</span></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
                     <div style="width: {% widthratio score_writing 25 100 %}%; height: 100%; background: var(--primary);"></div>
                 </div>
                 {% if writing_pending %}
-                <p style="font-size: 12px; color: #D97706; margin: 8px 0 0 0; font-weight: 600;">⚠️ La evaluación de escritura está pendiente. El puntaje puede actualizarse.</p>
+                <p style="font-size: 12px; color: #D97706; margin: 8px 0 0 0; font-weight: 600;">⚠️ The writing evaluation is pending. The score may be updated.</p>
                 {% endif %}
             </div>
 
             <div style="border-top: 1px solid var(--g200); padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 15px; font-weight: 800; color: var(--g800);">PUNTUACIÓN GLOBAL:</span>
+                <span style="font-size: 15px; font-weight: 800; color: var(--g800);">OVERALL SCORE:</span>
                 <span style="font-size: 18px; font-weight: 900; color: var(--secondary);">{{ score_total }}% <span style="font-size: 12px; color: var(--g400); font-weight: 500;">/ 100%</span></span>
             </div>
         </div>
 
         <a href="{% url 'progress:dashboard' %}" style="display: block; width: 100%; padding: 14px 20px; border-radius: 10px; background: var(--primary); color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; box-sizing: border-box; transition: background 0.2s ease;">
-            Ir a mi Dashboard Principal 
+            Go to My Dashboard
         </a>
     </div>
 </div>

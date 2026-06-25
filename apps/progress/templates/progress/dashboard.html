@@ -3,17 +3,17 @@
 
 {% block content %}
 <div style="max-width: 1000px; margin: 0 auto;">
-    
+
     <div style="margin-bottom: 32px;">
-        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0;">¡Hola de nuevo, {{ request.user.first_name|default:request.user.username }}! 👋</h1>
-        <p style="font-size: 14px; color: var(--g500); margin: 0;">Monitorea tu avance académico y continúa tu preparación hacia el nivel B1.</p>
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0;">Welcome back, {{ request.user.first_name|default:request.user.username }}! 👋</h1>
+        <p style="font-size: 14px; color: var(--g500); margin: 0;">Track your progress and continue your preparation towards B1 level.</p>
     </div>
 
     <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E7EB; padding: 32px; margin-bottom: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.02);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div>
-                <h3 style="font-size: 15px; font-weight: 800; color: var(--g700); margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.03em;">Progreso Global del Sistema</h3>
-                <p style="font-size: 12.5px; color: var(--g400); margin: 0;">Porcentaje acumulado sobre el total de actividades de SpeakUp.</p>
+                <h3 style="font-size: 15px; font-weight: 800; color: var(--g700); margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.03em;">Overall System Progress</h3>
+                <p style="font-size: 12.5px; color: var(--g400); margin: 0;">Cumulative percentage of all SpeakUp activities.</p>
             </div>
             <span style="font-size: 20px; font-weight: 900; color: var(--primary);">{{ global_progress }}%</span>
         </div>
@@ -23,17 +23,17 @@
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 28px; align-items: start;">
-        
+
         <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E7EB; padding: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.02);">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--g700); margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 0.03em;">Tus Niveles MCER</h3>
-            
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--g700); margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 0.03em;">Your CEFR Levels</h3>
+
             <div style="display: flex; flex-direction: column; gap: 18px;">
                 {% for nivel in niveles %}
                     {% if nivel.estado == 'completado' %}
                         <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px; border-left: 4px solid var(--secondary);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <span style="font-size: 14px; font-weight: 700; color: var(--g800);">Nivel {{ nivel.codigo }}: {{ nivel.nombre }} ✓</span>
-                                <span style="font-size: 12.5px; font-weight: 600; color: var(--g500);">{{ nivel.sub_completados }} de {{ nivel.total_subs }} Submódulos</span>
+                                <span style="font-size: 14px; font-weight: 700; color: var(--g800);">Level {{ nivel.codigo }}: {{ nivel.nombre }} ✓</span>
+                                <span style="font-size: 12.5px; font-weight: 600; color: var(--g500);">{{ nivel.sub_completados }} of {{ nivel.total_subs }} Submodules</span>
                             </div>
                             <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
                                 <div style="width: 100%; height: 100%; background: var(--secondary); transition: width 0.5s ease;"></div>
@@ -43,8 +43,8 @@
                     {% elif nivel.estado == 'activo' %}
                         <div style="background: #FFFFFF; border: 1.5px solid var(--primary-light); border-radius: 12px; padding: 16px; border-left: 4px solid var(--primary); box-shadow: 0 2px 8px rgba(79,70,229,0.04);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                <span style="font-size: 14px; font-weight: 700; color: var(--g800);">Nivel {{ nivel.codigo }}: {{ nivel.nombre }} ⚡</span>
-                                <span style="font-size: 12.5px; font-weight: 600; color: var(--primary);">{{ nivel.sub_completados }} de {{ nivel.total_subs }} Submódulos</span>
+                                <span style="font-size: 14px; font-weight: 700; color: var(--g800);">Level {{ nivel.codigo }}: {{ nivel.nombre }} ⚡</span>
+                                <span style="font-size: 12.5px; font-weight: 600; color: var(--primary);">{{ nivel.sub_completados }} of {{ nivel.total_subs }} Submodules</span>
                             </div>
                             <div style="width: 100%; height: 6px; background: var(--g100); border-radius: 3px; overflow: hidden;">
                                 <div style="width: {{ nivel.progreso }}%; height: 100%; background: var(--primary); transition: width 0.5s ease;"></div>
@@ -52,10 +52,10 @@
                         </div>
 
                     {% else %}
-                        <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px; opacity: 0.65; cursor: not-allowed;" title="Completa el nivel anterior para desbloquear.">
+                        <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px; opacity: 0.65; cursor: not-allowed;" title="Complete the previous level to unlock.">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-size: 14px; font-weight: 700; color: var(--g600);">🔒 Nivel {{ nivel.codigo }}: {{ nivel.nombre }}</span>
-                                <span style="font-size: 12px; font-weight: 700; color: var(--danger); background: var(--danger-light); padding: 2px 8px; border-radius: 10px;">Bloqueado</span>
+                                <span style="font-size: 14px; font-weight: 700; color: var(--g600);">🔒 Level {{ nivel.codigo }}: {{ nivel.nombre }}</span>
+                                <span style="font-size: 12px; font-weight: 700; color: var(--danger); background: var(--danger-light); padding: 2px 8px; border-radius: 10px;">Locked</span>
                             </div>
                         </div>
                     {% endif %}
@@ -64,8 +64,8 @@
         </div>
 
         <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E7EB; padding: 28px; box-shadow: 0 4px 16px rgba(0,0,0,0.02);">
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--g700); margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.03em;">Submódulos del Nivel Activo</h3>
-            <p style="font-size: 12.5px; color: var(--g400); margin: 0 0 20px 0;">Progreso actual dentro de los componentes del nivel activo.</p>
+            <h3 style="font-size: 15px; font-weight: 800; color: var(--g700); margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.03em;">Active Level Submodules</h3>
+            <p style="font-size: 12.5px; color: var(--g400); margin: 0 0 20px 0;">Current progress within the active level components.</p>
 
             <div style="display: flex; flex-direction: column; gap: 14px;">
                 {% for sub in submodulos %}
@@ -85,7 +85,7 @@
                                     <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: var(--primary-dark);">{{ sub.icono }} {{ sub.nombre }}</h4>
                                     <span style="font-size: 12px; color: var(--g500);">{{ sub.detalle }}</span>
                                 </div>
-                                <a href="{{ sub.url }}" style="font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none; background: #FFFFFF; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--primary);">Practicar →</a>
+                                <a href="{{ sub.url }}" style="font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none; background: #FFFFFF; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--primary);">Practice →</a>
                             </div>
                             <div style="width: 100%; height: 6px; background: var(--g200); border-radius: 3px; overflow: hidden;">
                                 <div style="width: {{ sub.progreso }}%; height: 100%; background: var(--primary); transition: width 0.5s ease;"></div>
@@ -107,15 +107,15 @@
                     <div style="border: 1.5px solid var(--secondary); background: var(--secondary-light); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: var(--g800);">🎯 {{ examen.titulo }}</h4>
-                            <span style="font-size: 12px; font-weight: 700; color: var(--secondary);">¡Listo para certificar! Control de intentos: {{ examen.intentos_restantes }} de 2.</span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--secondary);">Ready to certify! Attempts: {{ examen.intentos_restantes }} of 2.</span>
                         </div>
-                        <a href="{{ examen.url }}" style="font-size: 12px; font-weight: 700; color: #FFFFFF; text-decoration: none; background: var(--secondary); padding: 6px 12px; border-radius: 8px;">Rendir Examen</a>
+                        <a href="{{ examen.url }}" style="font-size: 12px; font-weight: 700; color: #FFFFFF; text-decoration: none; background: var(--secondary); padding: 6px 12px; border-radius: 8px;">Take Exam</a>
                     </div>
                 {% else %}
                     <div style="border: 1px dashed var(--warning); background: var(--warning-light); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: var(--g800);">🎯 {{ examen.titulo }}</h4>
-                            <span style="font-size: 12px; font-weight: 700; color: var(--warning);">Requiere completar todos los submódulos. Control de intentos: {{ examen.intentos_restantes }} de 2.</span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--warning);">Requires completing all submodules. Attempts: {{ examen.intentos_restantes }} of 2.</span>
                         </div>
                         <span style="font-size: 14px;">🔒</span>
                     </div>

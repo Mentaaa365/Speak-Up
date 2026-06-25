@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     if (!EJERCICIOS || EJERCICIOS.length === 0) {
-        document.getElementById('prompt-text').textContent = 'No hay ejercicios disponibles.';
+        document.getElementById('prompt-text').textContent = 'No exercises available.';
         return;
     }
 
@@ -37,11 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
         currentIndex = index;
         const ex = EJERCICIOS[index];
         promptText.textContent = ex.prompt;
-        indicator.textContent = `Ejercicio ${index + 1} de ${totalExercises} · ${completed.size} aprobados`;
+        indicator.textContent = `Ejercicio ${index + 1} de ${totalExercises} · ${completed.size} passed`;
         textarea.value = '';
         textarea.disabled = false;
         btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Evaluar respuesta';
+        btnSubmit.textContent = 'Submit answer';
         btnNext.style.display = 'none';
         feedbackPanel.style.display = 'none';
     };
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnNext.style.display = 'none';
         feedbackPanel.style.display = 'none';
 
-        indicator.textContent = `${totalExercises} de ${totalExercises} aprobados`;
+        indicator.textContent = `${totalExercises} de ${totalExercises} passed`;
 
         const wrapper = document.createElement('div');
         wrapper.style.cssText = 'text-align:center; padding:40px 20px;';
@@ -62,15 +62,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (submoduloCompletado) {
             wrapper.innerHTML =
-                '<p style="font-size:22px; font-weight:800; color:#10B981; margin:0 0 8px 0;">🎉 ¡Submódulo completado!</p>' +
-                '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">Aprobaste todos los ejercicios de escritura.</p>' +
-                '<a href="' + nextUrl + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none; margin-right:12px;">Siguiente submódulo →</a>' +
-                '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--g200); color:var(--g700); font-size:15px; font-weight:700; text-decoration:none;">Volver al Dashboard</a>';
+                '<p style="font-size:22px; font-weight:800; color:#10B981; margin:0 0 8px 0;">🎉 Submodule completed!</p>' +
+                '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">You passed all writing exercises.</p>' +
+                '<a href="' + nextUrl + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none; margin-right:12px;">Next submodule →</a>' +
+                '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--g200); color:var(--g700); font-size:15px; font-weight:700; text-decoration:none;">Back to Dashboard</a>';
         } else {
             wrapper.innerHTML =
-                '<p style="font-size:22px; font-weight:800; color:var(--primary); margin:0 0 8px 0;">✅ ¡Ejercicios terminados!</p>' +
-                '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">Completaste todos los ejercicios disponibles.</p>' +
-                '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none;">Volver al Dashboard</a>';
+                '<p style="font-size:22px; font-weight:800; color:var(--primary); margin:0 0 8px 0;">✅ Exercises completed!</p>' +
+                '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">You completed all available exercises.</p>' +
+                '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none;">Back to Dashboard</a>';
         }
 
         document.querySelector('#prompt-container').parentNode.appendChild(wrapper);
@@ -97,21 +97,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (data.aprobado) {
             completed.add(EJERCICIOS[currentIndex].id);
-            indicator.textContent = `Ejercicio ${currentIndex + 1} de ${totalExercises} · ${completed.size} aprobados`;
+            indicator.textContent = `Ejercicio ${currentIndex + 1} de ${totalExercises} · ${completed.size} passed`;
         }
 
         if (completed.size >= totalExercises) {
-            btnNext.textContent = '🎉 Submódulo completado →';
+            btnNext.textContent = '🎉 Submodule completed →';
             btnNext.style.display = 'inline-block';
             btnNext.onclick = () => showCompletionMessage(data.submodulo_completado);
         } else {
             const next = findNextPending(currentIndex);
             if (next !== -1 && data.aprobado) {
-                btnNext.textContent = 'Siguiente ejercicio →';
+                btnNext.textContent = 'Next exercise →';
                 btnNext.style.display = 'inline-block';
                 btnNext.onclick = () => loadExercise(next);
             } else if (!data.aprobado) {
-                btnSubmit.textContent = 'Reintentar';
+                btnSubmit.textContent = 'Retry';
                 btnSubmit.disabled = false;
                 textarea.disabled = false;
             }
@@ -120,10 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnSubmit.addEventListener('click', () => {
         const text = textarea.value.trim();
-        if (!text) return alert('Por favor, escribe tu respuesta antes de enviar.');
+        if (!text) return alert('Please write your answer before submitting.');
 
         btnSubmit.disabled = true;
-        btnSubmit.textContent = 'Evaluando...';
+        btnSubmit.textContent = 'Evaluating...';
         textarea.disabled = true;
 
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
@@ -143,9 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => showFeedback(data))
         .catch(() => {
             btnSubmit.disabled = false;
-            btnSubmit.textContent = 'Reintentar';
+            btnSubmit.textContent = 'Retry';
             textarea.disabled = false;
-            alert('Error de conexión. Intenta nuevamente.');
+            alert('Connection error. Try again.');
         });
     });
 

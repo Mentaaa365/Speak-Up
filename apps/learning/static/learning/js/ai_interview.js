@@ -5,7 +5,7 @@
  *   SESION_ID, NIVEL_CODIGO, TTS_RATE, TIEMPO_RESPUESTA, TURNO_URL, FINALIZAR_URL
  *
  * Flow:
- *   1. User clicks "Iniciar entrevista" -> POST TURNO_URL (empty historial) -> agent's opening question
+ *   1. User clicks "Start interview" -> POST TURNO_URL (empty historial) -> agent's opening question
  *   2. TTS speaks the question; STT auto-starts after TTS ends
  *   3. Countdown runs; auto-submits at 0, or user clicks "Finalizar respuesta"
  *   4. POST TURNO_URL with transcript + historial -> agent reply -> TTS -> STT loop
@@ -146,13 +146,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── STT (continuous, interim results) ───────────────────────────────────
     const startSTT = () => {
         if (!SpeechRecognition) {
-            showError('Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.');
+            showError('Your browser does not support speech recognition. Use Chrome or Edge.');
             return;
         }
         if (isRecording || interviewFinished) return;
 
         currentTranscript = '';
-        transcripcionEl.innerHTML = '<span style="color:var(--g400);">Escuchando...</span>';
+        transcripcionEl.innerHTML = '<span style="color:var(--g400);">Listening...</span>';
         isRecording = true;
         _setRecordingUI(true);
 
@@ -174,15 +174,30 @@ document.addEventListener('DOMContentLoaded', () => {
             transcripcionEl.textContent = (currentTranscript + interim).trim() || '…';
         };
 
+        let sttRetries = 0;
         recognition.onerror = (e) => {
             if (e.error === 'no-speech') return;
+            if ((e.error === 'network' || e.error === 'aborted') && sttRetries < 3) {
+                sttRetries++;
+                setTimeout(() => {
+                    if (isRecording && !interviewFinished && !isBusy) {
+                        try { recognition.start(); } catch (_) {}
+                    }
+                }, 300);
+                return;
+            }
             isRecording = false;
             _setRecordingUI(false);
-            showError(`Error de micrófono: ${e.error}. Verificá los permisos.`);
+            if (e.error === 'network') {
+                showError('Voice service connection error. Check your internet and try again.');
+            } else if (e.error === 'not-allowed') {
+                showError('Microphone permission denied. Enable it in browser settings.');
+            } else {
+                showError(`Microphone error: ${e.error}. Intentá de nuevo.`);
+            }
         };
 
         recognition.onend = () => {
-            // Restart in continuous mode unless we intentionally stopped
             if (isRecording && !interviewFinished && !isBusy) {
                 try { recognition.start(); } catch (_) {}
             }
@@ -213,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const regrabar = () => {
         stopSTT();
         currentTranscript = '';
-        transcripcionEl.innerHTML = '<span style="color:var(--g400);">Escuchando...</span>';
+        transcripcionEl.innerHTML = '<span style="color:var(--g400);">Listening...</span>';
         startSTT();
         turnActions.style.display = 'flex';
         recordBtn.style.display   = 'none';
@@ -228,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recordBtn.style.display     = 'flex';
             recordBtn.style.background  = 'var(--secondary)';
             recordBtnIcon.textContent   = '🎙️';
-            recordBtnLabel.textContent  = historial.length > 0 ? 'Grabar respuesta' : 'Iniciar entrevista';
+            recordBtnLabel.textContent  = historial.length > 0 ? 'Record response' : 'Start interview';
             turnActions.style.display   = 'none';
         }
     };
@@ -268,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!r.ok) {
                 return r.text().then(body => {
                     try { return Promise.reject(JSON.parse(body)); }
-                    catch (_) { return Promise.reject({ error: `Error del servidor (${r.status})` }); }
+                    catch (_) { return Promise.reject({ error: `Server error (${r.status})` }); }
                 });
             }
             return r.json();
@@ -286,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             recordBtn.disabled = false;
             recordBtn.style.background = 'var(--secondary)';
             transcripcionEl.innerHTML =
-                '<span style="color:var(--g400);">Tu voz aparecerá aquí mientras hablás...</span>';
+                '<span style="color:var(--g400);">Your voice will appear here as you speak...</span>';
 
             speak(data.respuesta, () => {
                 if (!isBusy && !interviewFinished) startSTT();
@@ -297,8 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
             recordBtn.disabled = false;
             recordBtn.style.background = 'var(--secondary)';
             recordBtnIcon.textContent  = '🎙️';
-            recordBtnLabel.textContent = 'Iniciar entrevista';
-            showError(err?.error || 'Error de conexión. Intentá de nuevo.');
+            recordBtnLabel.textContent = 'Start interview';
+            showError(err?.error || 'Connection error. Try again.');
         });
     };
 
@@ -329,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             interviewFinished = false;
             finalizarBtn.disabled = false;
             recordBtn.disabled    = false;
-            showError(err?.error || 'Error al finalizar la entrevista.');
+            showError(err?.error || 'Error finishing the interview.');
         });
     };
 
@@ -376,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isBusy || interviewFinished) return;
 
         if (historial.length === 0) {
-            recordBtnLabel.textContent = 'Conectando con IA... espere';
+            recordBtnLabel.textContent = 'Connecting to AI... please wait';
             recordBtnIcon.textContent  = '⏳';
             recordBtn.disabled         = true;
             recordBtn.style.background = 'var(--g400)';

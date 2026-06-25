@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpeakUp - Plataforma de Aprendizaje B1</title>
+    <title>SpeakUp - English Learning Platform</title>
     
     {% load static %}
     <link rel="stylesheet" href="{% static 'shared/css/global.css' %}">
@@ -24,13 +24,13 @@
                         <span>🏠</span> Dashboard
                     </a>
                     <a href="{% url 'learning:router_nivel' %}" class="nav-item {% if request.resolver_match.namespace == 'learning' %}active{% endif %}">
-                        <span>📚</span> Mi Nivel
+                        <span>📚</span> My Level
                     </a>
                     <a href="{% url 'progress:detail' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:detail' %}active{% endif %}">
-                        <span>📊</span> Progreso
+                        <span>📊</span> Progress
                     </a>
                     <a href="{% url 'exams:certificate' %}" class="nav-item {% if request.resolver_match.view_name == 'exams:certificate' %}active{% endif %}" class="nav-item">
-                        <span>🏆</span> Certificados
+                        <span>🏆</span> Certificates
                     </a>
                     
                 </nav>
@@ -44,12 +44,12 @@
                         </div>
                         <div class="user-info">
                             <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
-                            <span class="user-role">Nivel {{ request.user.perfil.nivel_mcer.codigo|default:"Sin nivel" }} activo</span>
+                            <span class="user-role">Active level {{ request.user.perfil.nivel_mcer.codigo|default:"None" }}</span>
                         </div>
                     </div>
                 {% endif %}
                 <a href="{% url 'authentication:logout' %}" class="btn-logout">
-                    Cerrar sesión
+                    Log out
                 </a>
             </div>
         </aside>
@@ -57,7 +57,7 @@
 
         <main class="main-content">
             <div id="offline-banner" style="display:none; background:#FEF2F2; border:1px solid #FECACA; color:#991B1B; padding:10px 16px; border-radius:8px; margin:0 0 16px 0; font-size:13px; font-weight:600; text-align:center;">
-                ⚠️ Sin conexión. Tu progreso se guardará al reconectar.
+                ⚠️ Offline. Your progress will be saved when reconnected.
             </div>
             {% block content %}
             {% endblock content %}

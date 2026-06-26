@@ -222,16 +222,16 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
 
         if total < MCER_THRESHOLD_A2:
             nivel = 'A1'
-            desc = 'Nivel Principiante / Acceso'
-            motiv = '¡Buen comienzo! Vamos a construir bases sólidas de vocabulario y estructuras simples.'
+            desc = 'Beginner Level / Access'
+            motiv = 'Great start! We will focus on building solid vocabulary foundations and simple structures.'
         elif total < MCER_THRESHOLD_B1:
             nivel = 'A2'
-            desc = 'Nivel Elemental / Plataforma'
-            motiv = '¡Tienes buen camino recorrido! Nos enfocaremos en mejorar tu ritmo y transiciones orales.'
+            desc = 'Elementary Level / Waystage'
+            motiv = 'Good progress! We will focus on improving your rhythm and oral transitions.'
         else:
             nivel = 'B1'
-            desc = 'Nivel Intermedio / Umbral'
-            motiv = '¡Excelente nivel inicial! Estás listo para los desafíos del nivel B1.'
+            desc = 'Intermediate Level / Threshold'
+            motiv = 'Excellent starting level! You are ready for the B1 challenges.'
 
         from apps.authentication.models import Perfil
         from apps.curriculum.models import NivelMCER
@@ -273,23 +273,22 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
                     'score_writing':          '-',
                     'score_total':            '-',
                     'nivel_asignado':         perfil.nivel_mcer.codigo,
-                    'descripcion_mcer':       f'Nivel {nombre}' if nombre else f'Nivel {perfil.nivel_mcer.codigo}',
-                    'descripcion_motivacional': '¡Ya tienes tu diagnóstico! Ve a tu Dashboard para comenzar a practicar.',
+                    'descripcion_mcer':       f'Level {nombre}' if nombre else f'Level {perfil.nivel_mcer.codigo}',
+                    'descripcion_motivacional': 'You already have your diagnosis! Go to your Dashboard to start practicing.',
                 }
                 return self.render_to_response(context)
         except Exception:
             pass
 
-        # Usuario sin nivel: lo invitamos a hacer el examen
         context = {
             'score_speaking':         0,
             'score_listening':        0,
             'score_vocabulary':       0,
             'score_writing':          0,
             'score_total':            0,
-            'nivel_asignado':         'No Evaluado',
-            'descripcion_mcer':       'Realiza el test para obtener tu nivel.',
-            'descripcion_motivacional': 'Vuelve al inicio y completa el diagnóstico.',
+            'nivel_asignado':         'Not Evaluated',
+            'descripcion_mcer':       'Complete the diagnostic test to get your level.',
+            'descripcion_motivacional': 'Go back and complete the diagnostic test.',
         }
         return self.render_to_response(context)
 

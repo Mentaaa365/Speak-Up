@@ -350,11 +350,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── Results panel ────────────────────────────────────────────────────────
     const CATEGORY_LABELS = {
-        pronunciacion:  'Pronunciación',
-        vocabulario:    'Vocabulario',
-        fluidez:        'Fluidez',
-        coherencia:     'Coherencia',
-        riqueza_lexica: 'Riqueza léxica',
+        pronunciacion:  'Pronunciation',
+        vocabulario:    'Vocabulary',
+        fluidez:        'Fluency',
+        coherencia:     'Coherence',
+        riqueza_lexica: 'Lexical richness',
     };
 
     const showResultado = (data) => {

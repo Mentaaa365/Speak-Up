@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (playCount >= 2) {
                 btnTts.disabled = true;
                 btnTts.style.opacity = "0.5";
-                btnTts.textContent = "🔊 Límite de reproducciones alcanzado";
+                btnTts.textContent = "🔊 Playback limit reached";
             }
         }
     };
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const progress = (currentIndex / questions.length) * 100;
         progressBar.style.width = `${progress}%`;
         progressPercentage.textContent = `${Math.round(progress)}%`;
-        progressText.textContent = `Pregunta ${currentIndex + 1} de ${questions.length}`;
+        progressText.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
 
         // Limpiar estados previos
         questionCategory.style.display = 'inline-block';
@@ -180,10 +180,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTts.style.display = 'none';
         btnTts.disabled = false;
         btnTts.style.opacity = "1";
-        btnTts.innerHTML = "🔊 Escuchar Audio";
+        btnTts.innerHTML = "🔊 Listen to audio";
         
         btnStt.style.display = 'none';
-        btnStt.innerHTML = "🎙️ Empezar a hablar";
+        btnStt.innerHTML = "🎙️ Speak your answer";
         btnStt.disabled = false;
         
         sttFeedback.style.display = 'none';

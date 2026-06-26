@@ -3,48 +3,48 @@
 
 {% block content %}
 <div style="display: flex; height: 100%; align-items: center; justify-content: center; padding: 40px;">
-    
+
     <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid #E5E7EB; padding: 44px; max-width: 460px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.06);">
-        
+
         <div style="display: flex; justify-content: center; margin-bottom: 28px;">
             <div style="width: 44px; height: 44px; border-radius: 12px; background: var(--primary); display: flex; align-items: center; justify-content: center;">
                 <span style="color: #FFFFFF; font-size: 22px; font-weight: 800;">S</span>
             </div>
         </div>
-        
-        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0; text-align: center;">Bienvenido de vuelta</h1>
-        
+
+        <h1 style="font-size: 24px; font-weight: 800; color: var(--g800); margin: 0 0 6px 0; text-align: center;">Welcome back</h1>
+
         <form method="POST" action="{% url 'authentication:login' %}" id="login-form">
-            {% csrf_token %} 
-            
+            {% csrf_token %}
+
             <div style="margin-bottom: 14px;">
-                <label style="font-size: 13px; font-weight: 600; color: var(--g700); display: block; margin-bottom: 5px;">Correo electrónico</label>
-                <input type="email" name="username" id="email-input" placeholder="tu@correo.com" style="width: 100%; padding: 10px 13px; font-size: 14px; border: 1.5px solid var(--g200); border-radius: 9px; background: #FFFFFF; color: var(--g600); box-sizing: border-box;" required>
-                <p id="email-error" style="font-size: 11px; color: var(--danger); margin: 3px 0 0 0; display: none;">Formato de correo inválido.</p>
+                <label style="font-size: 13px; font-weight: 600; color: var(--g700); display: block; margin-bottom: 5px;">Email address</label>
+                <input type="email" name="username" id="email-input" placeholder="your@email.com" style="width: 100%; padding: 10px 13px; font-size: 14px; border: 1.5px solid var(--g200); border-radius: 9px; background: #FFFFFF; color: var(--g600); box-sizing: border-box;" required>
+                <p id="email-error" style="font-size: 11px; color: var(--danger); margin: 3px 0 0 0; display: none;">Invalid email format.</p>
             </div>
 
             <div style="margin-bottom: 14px;">
-                <label style="font-size: 13px; font-weight: 600; color: var(--g700); display: block; margin-bottom: 5px;">Contraseña</label>
-                <input type="password" name="password" id="password-input" placeholder="Tu contraseña" style="width: 100%; padding: 10px 13px; font-size: 14px; border: 1.5px solid var(--g200); border-radius: 9px; background: #FFFFFF; color: var(--g600); box-sizing: border-box;" required>
+                <label style="font-size: 13px; font-weight: 600; color: var(--g700); display: block; margin-bottom: 5px;">Password</label>
+                <input type="password" name="password" id="password-input" placeholder="Your password" style="width: 100%; padding: 10px 13px; font-size: 14px; border: 1.5px solid var(--g200); border-radius: 9px; background: #FFFFFF; color: var(--g600); box-sizing: border-box;" required>
             </div>
 
             <div style="display: flex; justify-content: space-between; margin-top: -8px; margin-bottom: 18px;">
-                <a href="{% url 'authentication:password_reset' %}" style="font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 600;">¿Olvidaste tu contraseña?</a>
+                <a href="{% url 'authentication:password_reset' %}" style="font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 600;">Forgot your password?</a>
             </div>
 
             {% if form.errors %}
                 <div style="background: #FEE2E2; border-radius: 9px; padding: 10px 14px; margin-bottom: 14px;">
-                    <p style="font-size: 12px; color: var(--danger); margin: 0; font-weight: 600;">❌ Usuario o contraseña no coinciden.</p>
+                    <p style="font-size: 12px; color: var(--danger); margin: 0; font-weight: 600;">❌ Incorrect email or password.</p>
                 </div>
             {% endif %}
 
             <button type="submit" id="submit-btn" disabled style="width: 100%; padding: 11px 20px; border-radius: 9px; border: none; background: var(--g300); color: var(--g500); font-size: 14px; font-weight: 700; cursor: not-allowed; margin-top: 4px;">
-                Iniciar sesión 
+                Log in
             </button>
         </form>
 
         <p style="text-align: center; font-size: 13px; color: var(--g400); margin-top: 24px;">
-            ¿No tienes cuenta? <a href="{% url 'authentication:register' %}" style="color: var(--primary); font-weight: 700; text-decoration: none;">Regístrate gratis</a>
+            Don't have an account? <a href="{% url 'authentication:register' %}" style="color: var(--primary); font-weight: 700; text-decoration: none;">Sign up for free</a>
         </p>
     </div>
 </div>

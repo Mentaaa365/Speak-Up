@@ -40,12 +40,12 @@ class RegistroForm(forms.Form):
 
 
 class PasswordResetRequestForm(forms.Form):
-    email = forms.EmailField(label='Correo electrónico')
+    email = forms.EmailField(label='Email address')
 
 
 class SetNewPasswordForm(forms.Form):
-    new_password1 = forms.CharField(widget=forms.PasswordInput, label='Nueva contraseña')
-    new_password2 = forms.CharField(widget=forms.PasswordInput, label='Confirmar contraseña')
+    new_password1 = forms.CharField(widget=forms.PasswordInput, label='New password')
+    new_password2 = forms.CharField(widget=forms.PasswordInput, label='Confirm password')
 
     def clean_new_password1(self):
         password = self.cleaned_data.get('new_password1')
@@ -61,5 +61,5 @@ class SetNewPasswordForm(forms.Form):
         p1 = cleaned_data.get('new_password1')
         p2 = cleaned_data.get('new_password2')
         if p1 and p2 and p1 != p2:
-            raise forms.ValidationError('Las contraseñas no coinciden.')
+            raise forms.ValidationError('Passwords do not match.')
         return cleaned_data

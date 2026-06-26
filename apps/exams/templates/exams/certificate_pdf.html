@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <style>
@@ -102,34 +102,34 @@
 </head>
 <body>
     <div class="certificate">
-        <span class="badge">CERTIFICADO DIGITAL VERIFICABLE</span>
+        <span class="badge">VERIFIABLE DIGITAL CERTIFICATE</span>
 
-        <p class="title">Nivel {{ nivel_codigo }} — Marco Común Europeo de Referencia</p>
+        <p class="title">Level {{ nivel_codigo }} — Common European Framework of Reference</p>
         <p class="student-name">{{ nombre_completo }}</p>
         <p class="institution">{{ institucion }}</p>
 
         <div class="details">
             <div class="detail-item">
-                <p class="detail-label">Fecha de emisión</p>
+                <p class="detail-label">Date of issue</p>
                 <p class="detail-value">{{ emitido_en }}</p>
             </div>
             <div class="detail-item">
-                <p class="detail-label">Nivel certificado</p>
-                <p class="detail-value">{{ nivel_codigo }} MCER</p>
+                <p class="detail-label">Certified level</p>
+                <p class="detail-value">{{ nivel_codigo }} CEFR</p>
             </div>
             <div class="detail-item">
-                <p class="detail-label">Puntaje obtenido</p>
+                <p class="detail-label">Score obtained</p>
                 <p class="detail-value">{{ puntaje }}%</p>
             </div>
         </div>
 
         <div class="qr-section">
-            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR de verificación">
-            <p class="verify-url">Verificar en: {{ verify_url }}</p>
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="Verification QR code">
+            <p class="verify-url">Verify at: {{ verify_url }}</p>
             <p class="hash">SHA-256: {{ codigo_hash }}</p>
         </div>
 
-        <p class="footer">Emitido por SpeakUp — Sistema Inteligente de Aprendizaje de Inglés</p>
+        <p class="footer">Issued by SpeakUp — Intelligent English Learning System</p>
     </div>
 </body>
 </html>

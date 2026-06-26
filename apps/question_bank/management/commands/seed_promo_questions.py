@@ -65,8 +65,13 @@ QUESTIONS = {
             ("Choose the correct option: '_____ is your name?'", "What", "Where", "When", "Who"),
             ("Choose the correct option: 'I have _____ sister.'", "one", "a one", "the one", "an"),
             ("Choose the correct option: 'They _____ playing in the park.'", "are", "is", "am", "be"),
-            ("Choose the correct option: 'My mother _____ at the hospital.'", "works", "work", "working", "to work"),
-            ("Choose the correct option: 'I _____ up at seven every morning.'", "wake", "wakes", "waking", "waked"),
+        ],
+        "WRITING": [
+            "Write 2-3 sentences about yourself: your name, age, and where you live.",
+            "Describe your family in simple sentences.",
+            "Write about what you do every day.",
+            "Describe your favorite food in 2 sentences.",
+            "Write about your favorite animal and why you like it.",
         ],
     },
     "A2": {
@@ -130,8 +135,13 @@ QUESTIONS = {
             ("Complete: 'We have lived here _____ 2020.'", "since", "for", "during", "ago"),
             ("Complete: 'If it rains, I _____ stay home.'", "will", "would", "am", "did"),
             ("Complete: 'He was _____ when I called him.'", "sleeping", "sleep", "slept", "sleeps"),
-            ("Complete: 'I do not have _____ money.'", "any", "some", "many", "a lot"),
-            ("Complete: 'Could you speak _____, please?'", "more slowly", "slow", "slower much", "most slow"),
+        ],
+        "WRITING": [
+            "Write a short paragraph about your best friend and what you do together.",
+            "Describe what you did last weekend in 3-5 sentences.",
+            "Write about your favorite hobby and explain why you enjoy it.",
+            "Write a short email to a friend inviting them to your birthday party.",
+            "Describe your dream job and explain why you would like it.",
         ],
     },
     "B1": {
@@ -195,8 +205,13 @@ QUESTIONS = {
             ("Select: 'The car _____ was stolen has been found.'", "which", "who", "whom", "whose"),
             ("Select: 'He apologized for _____ late.'", "being", "be", "to be", "been"),
             ("Select: 'Not only _____ he arrive late, but he also forgot the report.'", "did", "had", "was", "has"),
-            ("Select: 'She managed to _____ the problem without help.'", "solve", "solving", "have solved", "solved"),
-            ("Select: 'Had I known, I _____ a different decision.'", "would have made", "would make", "made", "had made"),
+        ],
+        "WRITING": [
+            "Write an essay about the advantages and disadvantages of social media for students.",
+            "Describe a challenge you overcame and explain what you learned from the experience.",
+            "Discuss whether students should have less homework and provide reasons.",
+            "Explain why learning a second language is important for your future.",
+            "Write about how technology has changed the way people communicate.",
         ],
     },
 }
@@ -255,6 +270,16 @@ class Command(BaseCommand):
                     Option.objects.get_or_create(question=cq, text=correct, defaults={'is_correct': True})
                     for wrong in wrongs:
                         Option.objects.get_or_create(question=cq, text=wrong, defaults={'is_correct': False})
+
+            for text in level_data['WRITING']:
+                _, created = Question.objects.get_or_create(
+                    level=codigo,
+                    question_type='WRITING',
+                    bank_context='PROMOTION_EXAM',
+                    text=text,
+                )
+                if created:
+                    created_total += 1
 
         self.stdout.write(self.style.SUCCESS(
             f'Done. Created {created_total} new questions '

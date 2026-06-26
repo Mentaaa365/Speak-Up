@@ -88,11 +88,18 @@ class SeedPromoQuestionsCommandTests(TestCase):
                 Question.objects.filter(level=codigo, question_type='LISTENING', bank_context='PROMOTION_EXAM').count(), 5
             )
 
-    def test_creates_10_choice_per_level(self):
+    def test_creates_5_choice_per_level(self):
         call_command('seed_promo_questions', verbosity=0)
         for codigo in ['A1', 'A2', 'B1']:
             self.assertEqual(
-                Question.objects.filter(level=codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM').count(), 10
+                Question.objects.filter(level=codigo, question_type='CHOICE', bank_context='PROMOTION_EXAM').count(), 5
+            )
+
+    def test_creates_5_writing_per_level(self):
+        call_command('seed_promo_questions', verbosity=0)
+        for codigo in ['A1', 'A2', 'B1']:
+            self.assertEqual(
+                Question.objects.filter(level=codigo, question_type='WRITING', bank_context='PROMOTION_EXAM').count(), 5
             )
 
     def test_total_questions_are_60(self):

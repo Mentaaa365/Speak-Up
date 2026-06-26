@@ -31,7 +31,7 @@ class DashboardURLsTests(TestCase):
     def test_vocabulario_url_resolves_correctly(self):
         response = self.client.get(reverse("progress:dashboard"))
         submodulos = response.context["submodulos"]
-        vocab = next((s for s in submodulos if "Vocabulario" in s["nombre"]), None)
+        vocab = next((s for s in submodulos if "Vocabulary" in s["nombre"]), None)
         self.assertIsNotNone(vocab)
         self.assertEqual(str(vocab["url"]), reverse("learning:vocabulary"))
 

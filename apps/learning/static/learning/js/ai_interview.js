@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (e.error === 'not-allowed') {
                 showError('Microphone permission denied. Enable it in browser settings.');
             } else {
-                showError(`Microphone error: ${e.error}. Intentá de nuevo.`);
+                showError('Microphone error. Check your settings and try again.');
             }
         };
 

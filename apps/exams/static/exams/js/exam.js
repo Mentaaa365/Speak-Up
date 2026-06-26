@@ -69,48 +69,90 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // STT engine
-    const startListening = () => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome o Edge.");
-            return;
-        }
+    // STT engine — continuous mode with live transcript
+    let accumulatedTranscript = '';
+    let currentRecognition    = null;
+    let sttRetries            = 0;
+    const MAX_STT_RETRIES     = 3;
 
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
+    const _sttError = (code) => {
+        if (code === 'not-allowed') return 'Microphone access denied. Enable it in browser settings.';
+        if (code === 'network')     return 'Voice service unavailable. Check your connection.';
+        return 'Microphone error. Try again.';
+    };
 
+    const _updateLive = (text) => {
         sttFeedback.style.display = 'block';
-        sttFeedback.innerHTML = "<span style='color: var(--secondary); font-weight: 700;'>Escuchando... 🎙️</span>";
-        btnStt.disabled = true;
+        sttFeedback.innerHTML = text
+            ? `<em style="color:var(--g700);">${text}</em>`
+            : `<span style="color:var(--secondary);font-weight:700;">Listening… 🎙️</span>`;
+    };
 
-        recognition.start();
+    const _launchSTT = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang            = 'en-US';
+        recognition.continuous      = true;
+        recognition.interimResults  = true;
+        recognition.maxAlternatives = 1;
+        currentRecognition = recognition;
+
+        const safetyTimer = setTimeout(() => {
+            if (currentRecognition) { currentRecognition.stop(); currentRecognition = null; }
+        }, 10000);
 
         recognition.onresult = (event) => {
-            lastTranscript = event.results[0][0].transcript.trim();
-            sttFeedback.innerHTML = `Tu respuesta grabada: <b>"${lastTranscript}"</b>`;
-            btnStt.disabled = false;
-            btnStt.innerHTML = "🔄 Volver a intentar";
+            let interim = '';
+            let final   = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const t = event.results[i][0].transcript;
+                if (event.results[i].isFinal) final += t + ' ';
+                else interim += t;
+            }
+            if (final) accumulatedTranscript += final;
+            _updateLive((accumulatedTranscript + interim).trim());
         };
 
         recognition.onerror = (e) => {
-            sttFeedback.innerHTML = `
-                <div style="margin-top:10px;">
-                    <p style="color:var(--danger); font-size:13px; font-weight:600;">
-                        Error: ${e.error}. Verifica tu micrófono o conexión a internet e intenta nuevamente.
-                    </p>
-                </div>
-            `;
-            btnStt.disabled = false;
+            clearTimeout(safetyTimer);
+            if ((e.error === 'network' || e.error === 'aborted') && sttRetries < MAX_STT_RETRIES) {
+                sttRetries++;
+                setTimeout(() => { if (btnStt.disabled) _launchSTT(); }, 300);
+                return;
+            }
+            if (e.error === 'no-speech') return;
+            currentRecognition = null;
+            btnStt.disabled    = false;
+            const msg = _sttError(e.error);
+            if (msg) sttFeedback.innerHTML = `<p style="color:var(--danger);font-size:13px;font-weight:600;">${msg}</p>`;
         };
 
         recognition.onend = () => {
-            if (!lastTranscript && btnStt.disabled) {
-                sttFeedback.textContent = "No se escuchó nada. Intenta de nuevo.";
-                btnStt.disabled = false;
-            }
+            clearTimeout(safetyTimer);
+            currentRecognition = null;
+            if (!accumulatedTranscript.trim()) { btnStt.disabled = false; return; }
+            lastTranscript = accumulatedTranscript.trim();
+            sttFeedback.innerHTML = `Your recorded answer: <b>"${lastTranscript}"</b>`;
+            btnStt.disabled   = false;
+            btnStt.innerHTML  = '🔄 Try again';
         };
+
+        recognition.start();
+    };
+
+    const startListening = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            sttFeedback.style.display = 'block';
+            sttFeedback.innerHTML = '<p style="color:var(--danger);font-size:13px;">Your browser does not support speech recognition. Use Chrome or Edge.</p>';
+            return;
+        }
+        if (currentRecognition) { currentRecognition.stop(); currentRecognition = null; return; }
+        accumulatedTranscript = '';
+        sttRetries            = 0;
+        btnStt.disabled       = true;
+        _updateLive('');
+        _launchSTT();
     };
 
     btnStt.onclick = startListening;
@@ -140,8 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sttFeedback.style.display = 'none';
         sttFeedback.innerHTML = '';
 
-        playCount = 0;
-        lastTranscript = "";
+        playCount             = 0;
+        lastTranscript        = '';
+        accumulatedTranscript = '';
+        if (currentRecognition) { try { currentRecognition.stop(); } catch (_) {} currentRecognition = null; }
 
         if (q.type === 'CHOICE' || q.type === 'LISTENING') {
             optionsContainer.style.display = 'grid';

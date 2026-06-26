@@ -213,107 +213,153 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ─── STT + GLOBAL SCORING ──────────────────────────────────────────────
-    if (SpeechRecognition && karaokeBtn) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+    let isRecording = false;
+    let accumulated = '';
+    let currentRec  = null;
 
+    const _sttError = (code) => {
+        if (code === 'not-allowed') return 'Microphone access denied. Enable it in browser settings.';
+        if (code === 'network')     return 'Voice service unavailable. Check your connection.';
+        if (code === 'no-speech')   return 'No speech detected. Try again.';
+        return 'Microphone error. Try again.';
+    };
+
+    const processLine = (transcript) => {
+        isRecording = false;
+        currentRec  = null;
+        const target  = lyricsData[currentLineIndex].text;
+        const puntaje = score(transcript, target);
+        const lineEl  = document.getElementById(`line-${currentLineIndex}`);
+
+        const prev = lineScores.get(currentLineIndex) || 0;
+        if (puntaje > prev) bestTranscripts.set(currentLineIndex, transcript);
+        lineScores.set(currentLineIndex, Math.max(prev, puntaje));
+
+        if (puntaje >= 80) {
+            if (lineEl) { lineEl.style.color = '#10B981'; lineEl.textContent = '✓ ' + target; }
+            karaokeStatus.innerHTML = `✅ Great! (${puntaje}%)`;
+            if (audioPlayer.paused) audioPlayer.play();
+        } else {
+            if (lineEl) { lineEl.style.color = '#F59E0B'; lineEl.textContent = '✗ ' + target; }
+            karaokeStatus.innerHTML = `⚠️ (${puntaje}%). You said: "${transcript}". Try again.`;
+        }
+
+        updateProgressUI();
+
+        const globalScore = computeGlobalScore();
+        if (globalScore >= 80 && !songSaved) {
+            songSaved = true;
+            songsCompleted.add(CANCIONES[currentSongIndex].id);
+
+            guardarProgreso().then(response => {
+                confetti({
+                    particleCount: 150,
+                    spread: 80,
+                    origin: { y: 0.6 },
+                    colors: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'],
+                });
+
+                const isSubmoduleComplete = response && response.submodulo_completado;
+
+                Swal.fire({
+                    title: isSubmoduleComplete ? 'Submodule Complete! 🏆' : 'Song Passed! 🎉',
+                    text: isSubmoduleComplete
+                        ? 'You completed all songs for this level!'
+                        : `Score: ${globalScore}%. ${totalSongs - songsCompleted.size} song(s) left.`,
+                    icon: 'success',
+                    confirmButtonText: isSubmoduleComplete ? 'Back to Dashboard' : 'Next song',
+                    confirmButtonColor: '#4F46E5',
+                    allowOutsideClick: false,
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        if (isSubmoduleComplete) {
+                            window.location.href = DASHBOARD_URL;
+                        } else {
+                            const next = findNextIncomplete();
+                            if (next !== -1) initSong(next);
+                        }
+                    }
+                });
+            });
+        }
+
+        karaokeBtn.textContent = '🎤 Practice current line';
+        karaokeBtn.style.background = 'var(--secondary)';
+    };
+
+    const stopAndScore = () => {
+        if (!isRecording) return;
+        isRecording = false;
+        if (currentRec) { try { currentRec.stop(); } catch (_) {} currentRec = null; }
+        const t = accumulated.trim();
+        if (t) {
+            processLine(t);
+        } else {
+            karaokeStatus.textContent = 'No speech detected. Try again.';
+            karaokeBtn.textContent = '🎤 Practice current line';
+            karaokeBtn.style.background = 'var(--secondary)';
+        }
+    };
+
+    const launchSTT = () => {
+        const rec = new SpeechRecognition();
+        rec.lang            = 'en-US';
+        rec.continuous      = true;
+        rec.interimResults  = true;
+        rec.maxAlternatives = 1;
+        currentRec = rec;
+
+        const safetyTimer = setTimeout(stopAndScore, 8000);
+
+        rec.onresult = (event) => {
+            let interim = '';
+            let final   = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const t = event.results[i][0].transcript;
+                if (event.results[i].isFinal) final += t + ' ';
+                else interim += t;
+            }
+            if (final) accumulated += final;
+            karaokeStatus.innerHTML = `🎤 <em>${(accumulated + interim).trim() || '…'}</em>`;
+        };
+
+        rec.onerror = (e) => {
+            clearTimeout(safetyTimer);
+            if (e.error === 'no-speech') return;
+            isRecording = false;
+            currentRec  = null;
+            karaokeStatus.textContent = _sttError(e.error);
+            karaokeBtn.textContent    = '🎤 Practice current line';
+            karaokeBtn.style.background = 'var(--secondary)';
+        };
+
+        rec.onend = () => {
+            clearTimeout(safetyTimer);
+            if (isRecording) stopAndScore();
+        };
+
+        rec.start();
+    };
+
+    if (SpeechRecognition && karaokeBtn) {
         karaokeBtn.addEventListener('click', () => {
+            if (isRecording) { stopAndScore(); return; }
+
             if (currentLineIndex === -1 || !lyricsData[currentLineIndex]) {
-                karaokeStatus.textContent = "Dale Play a la música primero.";
+                karaokeStatus.textContent = 'Play the song first.';
                 return;
             }
 
             audioPlayer.pause();
-            const lineaObjetivo = lyricsData[currentLineIndex].text;
-            karaokeBtn.textContent = "🔴 Escuchando...";
-            karaokeBtn.style.background = "var(--danger)";
-            karaokeStatus.innerHTML = `🎤 Di esto: <strong>"${lineaObjetivo}"</strong>`;
-
-            try { recognition.start(); } catch(e) { recognition.stop(); }
+            accumulated = '';
+            isRecording = true;
+            karaokeBtn.textContent      = '🔴 Tap to submit';
+            karaokeBtn.style.background = 'var(--danger)';
+            karaokeStatus.innerHTML     = `🎤 Say: <strong>"${lyricsData[currentLineIndex].text}"</strong>`;
+            launchSTT();
         });
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript.trim();
-            const lineaObjetivo = lyricsData[currentLineIndex].text;
-            const puntaje = score(transcript, lineaObjetivo);
-            const lineEl = document.getElementById(`line-${currentLineIndex}`);
-
-            const prev = lineScores.get(currentLineIndex) || 0;
-            if (puntaje > prev) {
-                bestTranscripts.set(currentLineIndex, transcript);
-            }
-            lineScores.set(currentLineIndex, Math.max(prev, puntaje));
-
-            if (puntaje >= 80) {
-                if (lineEl) { lineEl.style.color = "#10B981"; lineEl.textContent = "✓ " + lineaObjetivo; }
-                karaokeStatus.innerHTML = `✅ ¡Perfecto! (${puntaje}%)`;
-                if (audioPlayer.paused) audioPlayer.play();
-            } else {
-                if (lineEl) { lineEl.style.color = "#F59E0B"; lineEl.textContent = "✗ " + lineaObjetivo; }
-                karaokeStatus.innerHTML = `⚠️ (${puntaje}%). Dijiste: "${transcript}". Intenta de nuevo.`;
-            }
-
-            updateProgressUI();
-
-            const globalScore = computeGlobalScore();
-            if (globalScore >= 80 && !songSaved) {
-                songSaved = true;
-                songsCompleted.add(CANCIONES[currentSongIndex].id);
-
-                guardarProgreso().then(response => {
-                    confetti({
-                        particleCount: 150,
-                        spread: 80,
-                        origin: { y: 0.6 },
-                        colors: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444']
-                    });
-
-                    const isLastSong = songsCompleted.size >= totalSongs;
-                    const isSubmoduleComplete = response && response.submodulo_completado;
-
-                    Swal.fire({
-                        title: isSubmoduleComplete ? '¡Submódulo Completado! 🏆' : '¡Canción Superada! 🎉',
-                        text: isSubmoduleComplete
-                            ? '¡Completaste todas las canciones de este nivel!'
-                            : `Puntaje: ${globalScore}%. ${totalSongs - songsCompleted.size} canción(es) restante(s).`,
-                        icon: 'success',
-                        confirmButtonText: isSubmoduleComplete ? 'Volver al Dashboard' : 'Siguiente canción',
-                        confirmButtonColor: '#4F46E5',
-                        allowOutsideClick: false,
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            if (isSubmoduleComplete) {
-                                window.location.href = DASHBOARD_URL;
-                            } else {
-                                const next = findNextIncomplete();
-                                if (next !== -1) initSong(next);
-                            }
-                        }
-                    });
-                });
-            }
-
-            karaokeBtn.textContent = "🎤 Practicar línea actual";
-            karaokeBtn.style.background = "var(--secondary)";
-        };
-
-        recognition.onerror = (e) => {
-            karaokeStatus.textContent = `Error: ${e.error}`;
-            karaokeBtn.textContent = "🎤 Practicar línea actual";
-            karaokeBtn.style.background = "var(--secondary)";
-        };
-
-        recognition.onend = () => {
-            if (karaokeBtn.textContent.includes("Escuchando")) {
-                karaokeBtn.textContent = "🎤 Practicar línea actual";
-                karaokeBtn.style.background = "var(--secondary)";
-                karaokeStatus.textContent = "No se escuchó nada. Intenta de nuevo.";
-            }
-        };
     } else if (karaokeStatus) {
-        karaokeStatus.textContent = "Tu navegador no soporta evaluación de voz.";
+        karaokeStatus.textContent = 'Your browser does not support voice evaluation.';
     }
 
     // ─── SONG NAVIGATION ───────────────────────────────────────────────────

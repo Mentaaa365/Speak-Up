@@ -26,6 +26,7 @@ class Perfil(models.Model):
         related_name="perfiles",
     )
     institucion = models.CharField(max_length=255, blank=True, null=True)
+    fecha_ultimo_diagnostico = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Perfil de {self.usuario}"

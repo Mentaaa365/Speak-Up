@@ -316,6 +316,11 @@ class ProgressDetailView(LoginRequiredMixin, TemplateView):
 
         context['submodulos'] = submodulos_data
 
+        from apps.diagnosis.models import DiagnosisAttempt
+        context['diagnosis_attempts'] = DiagnosisAttempt.objects.filter(
+            perfil=perfil
+        ).select_related('nivel_resultado').order_by('-fecha')
+
         return context
 
 

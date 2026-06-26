@@ -26,11 +26,28 @@ class DiagnosisWelcomeView(LoginRequiredMixin, TemplateView):
     template_name = 'diagnosis/welcome.html'
 
     def dispatch(self, request, *args, **kwargs):
+        from django.conf import settings
+        from django.utils import timezone
+        from datetime import timedelta
         from apps.authentication.models import Perfil
         try:
             perfil = Perfil.objects.get(usuario=request.user)
             if perfil.nivel_mcer:
-                return redirect('progress:dashboard')
+                cooldown_days = getattr(settings, 'DIAGNOSIS_COOLDOWN_DAYS', 30)
+                if perfil.fecha_ultimo_diagnostico:
+                    elapsed = timezone.now() - perfil.fecha_ultimo_diagnostico
+                    if elapsed.days < cooldown_days:
+                        days_left = cooldown_days - elapsed.days
+                        from django.contrib import messages
+                        messages.warning(
+                            request,
+                            f"You can retake the diagnostic in {days_left} day{'s' if days_left != 1 else ''}."
+                        )
+                        return redirect('progress:dashboard')
+                else:
+                    # Has level but no fecha → first diagnosis was before this feature.
+                    # Allow retake (no cooldown data).
+                    pass
         except Perfil.DoesNotExist:
             pass
         return super().dispatch(request, *args, **kwargs)
@@ -40,11 +57,28 @@ class DiagnosisTestView(LoginRequiredMixin, TemplateView):
     template_name = 'diagnosis/test.html'
 
     def dispatch(self, request, *args, **kwargs):
+        from django.conf import settings
+        from django.utils import timezone
+        from datetime import timedelta
         from apps.authentication.models import Perfil
         try:
             perfil = Perfil.objects.get(usuario=request.user)
             if perfil.nivel_mcer:
-                return redirect('progress:dashboard')
+                cooldown_days = getattr(settings, 'DIAGNOSIS_COOLDOWN_DAYS', 30)
+                if perfil.fecha_ultimo_diagnostico:
+                    elapsed = timezone.now() - perfil.fecha_ultimo_diagnostico
+                    if elapsed.days < cooldown_days:
+                        days_left = cooldown_days - elapsed.days
+                        from django.contrib import messages
+                        messages.warning(
+                            request,
+                            f"You can retake the diagnostic in {days_left} day{'s' if days_left != 1 else ''}."
+                        )
+                        return redirect('progress:dashboard')
+                else:
+                    # Has level but no fecha → first diagnosis was before this feature.
+                    # Allow retake (no cooldown data).
+                    pass
         except Perfil.DoesNotExist:
             pass
         return super().dispatch(request, *args, **kwargs)
@@ -235,11 +269,23 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
 
         from apps.authentication.models import Perfil
         from apps.curriculum.models import NivelMCER
+        from apps.diagnosis.models import DiagnosisAttempt
+        from django.utils import timezone
         try:
             perfil = Perfil.objects.get(usuario=request.user)
             nivel_obj = NivelMCER.objects.get(codigo=nivel)
             perfil.nivel_mcer = nivel_obj
-            perfil.save()
+            perfil.fecha_ultimo_diagnostico = timezone.now()
+            perfil.save(update_fields=['nivel_mcer', 'fecha_ultimo_diagnostico'])
+            DiagnosisAttempt.objects.create(
+                perfil=perfil,
+                nivel_resultado=nivel_obj,
+                score_speaking=score_speaking,
+                score_listening=score_listening,
+                score_vocab=score_vocab,
+                score_writing=score_writing,
+                score_total=total,
+            )
         except Exception:
             pass
 

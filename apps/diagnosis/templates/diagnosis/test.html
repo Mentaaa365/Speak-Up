@@ -15,6 +15,7 @@
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
             <span id="progress-text" style="font-size: 14px; font-weight: 700; color: var(--g600);">Question 1 of X</span>
             <span id="progress-percentage" style="font-size: 14px; font-weight: 800; color: var(--primary);">0%</span>
+            <span id="diagnosis-timer" style="font-size: 14px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums;">30:00</span>
         </header>
         <div style="height: 8px; background: var(--g100); border-radius: 999px; margin-bottom: 32px;">
             <div id="progress-bar" style="height: 100%; width: 0%; background: var(--primary); border-radius: 999px; transition: width 0.3s ease;"></div>
@@ -56,5 +57,8 @@
 
 </div>
 
+<script>
+    const DIAGNOSIS_TIMEOUT_SECONDS = {{ timeout_seconds }};
+</script>
 <script src="{% static 'diagnosis/js/test.js' %}"></script>
 {% endblock content %}

@@ -10,7 +10,7 @@ from django.utils import timezone
 from apps.authentication.models import Perfil
 from apps.curriculum.models import NivelMCER
 from apps.diagnosis import views
-from apps.question_bank.models import Question
+from apps.question_bank.models import Option, Question
 
 User = get_user_model()
 
@@ -354,3 +354,128 @@ class DiagnosisHistoryInProgressDetailTests(TestCase):
         attempts_in_ctx = list(response.context["diagnosis_attempts"])
         self.assertEqual(attempts_in_ctx[0].pk, second.pk)
         self.assertEqual(attempts_in_ctx[1].pk, first.pk)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  H3 — Countdown timer: context + empty-answer handling
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DiagnosisTestViewContextTests(TestCase):
+    """DiagnosisTestView must pass DIAGNOSIS_TIMEOUT_SECONDS via context (H3)."""
+
+    def setUp(self):
+        self.nivel_a1 = NivelMCER.objects.create(codigo="A1", orden=1)
+        self.user = User.objects.create_user(
+            username="timerctx@example.com",
+            email="timerctx@example.com",
+            password="x",
+        )
+        # force_login BEFORE modifying Perfil to avoid signal overwriting saved values.
+        # Perfil has nivel_mcer=None by default, so dispatch allows through.
+        self.client.force_login(self.user)
+
+    def test_timeout_seconds_in_context(self):
+        response = self.client.get(reverse("diagnosis:test_run"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("timeout_seconds", response.context)
+        self.assertEqual(response.context["timeout_seconds"], 1800)
+
+
+class DiagnosisEmptyAnswerHandlingTests(TestCase):
+    """Empty answers submitted on timeout (Opción B) must not raise errors (H3)."""
+
+    def setUp(self):
+        self.nivel_a1 = NivelMCER.objects.create(codigo="A1", orden=1)
+        self.user = User.objects.create_user(
+            username="emptyans@example.com",
+            email="emptyans@example.com",
+            password="x",
+        )
+        self.client.force_login(self.user)
+
+    def test_empty_speaking_answer_counts_as_wrong(self):
+        answers = [
+            {
+                "questionId": "some-id",
+                "type": "SPEAKING",
+                "answer": "",
+                "optionId": "",
+                "targetPhrase": "Hello world",
+            },
+        ]
+        response = self.client.post(
+            reverse("diagnosis:results"),
+            {"answers_data": json.dumps(answers)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["score_speaking"], 0)
+
+    def test_empty_choice_answer_counts_as_wrong(self):
+        answers = [
+            {
+                "questionId": "some-id",
+                "type": "CHOICE",
+                "answer": "",
+                "optionId": "",
+                "targetPhrase": "",
+            },
+        ]
+        response = self.client.post(
+            reverse("diagnosis:results"),
+            {"answers_data": json.dumps(answers)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["score_vocabulary"], 0)
+
+    def test_empty_writing_answer_skipped_no_error(self):
+        # answer is empty — after the fix the view must skip the DB lookup entirely
+        answers = [
+            {
+                "questionId": "nonexistent-id",
+                "type": "WRITING",
+                "answer": "",
+                "optionId": "",
+                "targetPhrase": "",
+            },
+        ]
+        response = self.client.post(
+            reverse("diagnosis:results"),
+            {"answers_data": json.dumps(answers)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["score_writing"], 0)
+
+    def test_partial_submission_mixed_empty_and_real(self):
+        q = Question.objects.create(
+            level="A1",
+            question_type="CHOICE",
+            bank_context="DIAGNOSTIC",
+            text="Sample choice question",
+        )
+        opt_correct = Option.objects.create(question=q, text="Correct answer", is_correct=True)
+
+        answers = [
+            # Answered correctly
+            {
+                "questionId": str(q.id),
+                "type": "CHOICE",
+                "answer": str(opt_correct.id),
+                "optionId": str(opt_correct.id),
+                "targetPhrase": "",
+            },
+            # Empty answer (unanswered question on timeout)
+            {
+                "questionId": str(q.id),
+                "type": "CHOICE",
+                "answer": "",
+                "optionId": "",
+                "targetPhrase": "",
+            },
+        ]
+        response = self.client.post(
+            reverse("diagnosis:results"),
+            {"answers_data": json.dumps(answers)},
+        )
+        self.assertEqual(response.status_code, 200)
+        # One correct out of two total → score > 0
+        self.assertGreater(response.context["score_vocabulary"], 0)

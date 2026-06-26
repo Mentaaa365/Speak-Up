@@ -56,6 +56,12 @@ class DiagnosisWelcomeView(LoginRequiredMixin, TemplateView):
 class DiagnosisTestView(LoginRequiredMixin, TemplateView):
     template_name = 'diagnosis/test.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from django.conf import settings
+        context['timeout_seconds'] = getattr(settings, 'DIAGNOSIS_TIMEOUT_SECONDS', 1800)
+        return context
+
     def dispatch(self, request, *args, **kwargs):
         from django.conf import settings
         from django.utils import timezone
@@ -221,12 +227,13 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
                         pass
 
             elif q_type == 'WRITING':
-                q_id = item.get('questionId', '')
-                try:
-                    q_obj = Question.objects.get(id=q_id)
-                    writing_items.append({'text': answer, 'prompt': q_obj.text, 'level': q_obj.level})
-                except Question.DoesNotExist:
-                    writing_items.append({'text': answer, 'prompt': '', 'level': ''})
+                if answer.strip():
+                    q_id = item.get('questionId', '')
+                    try:
+                        q_obj = Question.objects.get(id=q_id)
+                        writing_items.append({'text': answer, 'prompt': q_obj.text, 'level': q_obj.level})
+                    except Question.DoesNotExist:
+                        writing_items.append({'text': answer, 'prompt': '', 'level': ''})
 
         score_speaking = round(correct_speaking / total_speaking * SPEAKING_MAX) if total_speaking else 0
         score_listening = round(correct_listening / total_listening * LISTENING_MAX) if total_listening else 0

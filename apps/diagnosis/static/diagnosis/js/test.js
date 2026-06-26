@@ -1,16 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. VARIABLES GLOBALES
-    let questions = []; 
+    let questions = [];
     let currentIndex = 0;
-    
-    // Almacena las respuestas exactas (o transcripciones) para enviarlas al backend
+
+    // Stores exact answers (or transcripts) to send to the backend
     let userAnswers = [];
-    
-    // Variables de control
-    let playCount = 0; 
+
+    // Control variables
+    let playCount = 0;
     let lastTranscript = "";
 
-    // Elementos del DOM
+    // Timer state
+    let secondsLeft   = DIAGNOSIS_TIMEOUT_SECONDS;
+    let timerInterval = null;
+    const timerEl     = document.getElementById('diagnosis-timer');
+
+    // DOM elements
     const questionCategory = document.getElementById('question-category');
     const questionText = document.getElementById('question-text');
     const optionsContainer = document.getElementById('options-container');
@@ -18,12 +23,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const progressPercentage = document.getElementById('progress-percentage');
-    
+
     const btnTts = document.getElementById('btn-tts');
     const btnStt = document.getElementById('btn-stt');
     const sttFeedback = document.getElementById('stt-feedback');
 
-    // 2. INICIALIZACIÓN Y RECUPERACIÓN DE CACHÉ LOCAL
+    // ── TIMER HELPERS ──────────────────────────────────────────────────────────
+
+    const formatTime = (s) => {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    };
+
+    const expireDiagnostic = () => {
+        clearInterval(timerInterval);
+        // Fill all unanswered questions with empty answers (Opción B)
+        const answered = new Set(userAnswers.map(a => a.questionId));
+        questions.forEach(q => {
+            if (!answered.has(q.id)) {
+                userAnswers.push({
+                    questionId:   q.id,
+                    type:         q.type,
+                    answer:       '',
+                    optionId:     '',
+                    targetPhrase: q.targetPhrase || '',
+                });
+            }
+        });
+        submitDiagnostic(userAnswers);
+    };
+
+    const startTimer = () => {
+        timerEl.textContent = formatTime(secondsLeft);
+        timerInterval = setInterval(() => {
+            secondsLeft--;
+            timerEl.textContent = formatTime(secondsLeft);
+            if (secondsLeft <= 300) {
+                timerEl.style.color = 'var(--danger)';
+            }
+            if (secondsLeft <= 0) {
+                expireDiagnostic();
+            }
+        }, 1000);
+    };
+
+    // ── FORM SUBMISSION ────────────────────────────────────────────────────────
+
+    const submitDiagnostic = (answers) => {
+        clearInterval(timerInterval);
+        localStorage.removeItem('diagnostic_progress');
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/diagnosis/results/';
+
+        const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfTokenElement ? csrfTokenElement.value : '';
+        form.appendChild(csrfInput);
+
+        const dataInput = document.createElement('input');
+        dataInput.type = 'hidden';
+        dataInput.name = 'answers_data';
+        dataInput.value = JSON.stringify(answers);
+        form.appendChild(dataInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    };
+
+    // 2. INITIALIZATION AND LOCAL CACHE RECOVERY
     const inicializarExamen = () => {
         const savedProgress = localStorage.getItem('diagnostic_progress');
         if (savedProgress) {
@@ -40,12 +112,13 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 questions = data.questions;
                 if (currentIndex >= questions.length) {
-                    // Si por algún error la caché tiene un índice mayor a las preguntas, limpiamos
+                    // Cache index out of bounds — reset
                     localStorage.removeItem('diagnostic_progress');
                     currentIndex = 0;
                     userAnswers = [];
                 }
                 loadQuestion();
+                startTimer();
             })
             .catch(error => {
                 console.error("Error al cargar:", error);
@@ -53,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     };
 
-    // 3. MOTOR TTS (Con límite de 2 reproducciones)
+    // 3. TTS ENGINE (limit of 2 plays)
     const speakText = (text) => {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
@@ -161,17 +234,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnStt.onclick = startListening;
 
-    // 5. RENDERIZAR PREGUNTA
+    // 5. RENDER QUESTION
     const loadQuestion = () => {
         const q = questions[currentIndex];
-        
-        // Actualizar barra de progreso
+
+        // Update progress bar
         const progress = (currentIndex / questions.length) * 100;
         progressBar.style.width = `${progress}%`;
         progressPercentage.textContent = `${Math.round(progress)}%`;
         progressText.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
 
-        // Limpiar estados previos
+        // Clear previous state
         questionCategory.style.display = 'inline-block';
         questionCategory.textContent = q.type;
         questionText.innerHTML = q.text;
@@ -181,20 +254,20 @@ document.addEventListener('DOMContentLoaded', () => {
         btnTts.disabled = false;
         btnTts.style.opacity = "1";
         btnTts.innerHTML = "🔊 Listen to audio";
-        
+
         btnStt.style.display = 'none';
         btnStt.innerHTML = "🎙️ Speak your answer";
         btnStt.disabled = false;
-        
+
         sttFeedback.style.display = 'none';
         sttFeedback.innerHTML = '';
-        
+
         playCount             = 0;
         lastTranscript        = '';
         accumulatedTranscript = '';
         if (currentRecognition) { try { currentRecognition.stop(); } catch (_) {} currentRecognition = null; }
 
-        // Mostrar elementos según el tipo de pregunta
+        // Render elements based on question type
         if (q.type === 'CHOICE' || q.type === 'LISTENING') {
             optionsContainer.style.display = 'grid';
             q.options.forEach(opt => {
@@ -204,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="radio" name="answer" value="${opt.id}" style="width: 20px; height: 20px; accent-color: var(--primary);">
                     <span style="font-size: 15px; color: var(--g800);">${opt.text}</span>
                 `;
-                // Efecto visual al seleccionar
+                // Visual highlight on selection
                 label.addEventListener('click', () => {
                     document.querySelectorAll('#options-container label').forEach(l => l.style.borderColor = 'var(--g200)');
                     label.style.borderColor = 'var(--primary)';
@@ -228,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 6. NAVEGACIÓN Y ENVÍO SEGURO AL SERVIDOR
+    // 6. NAVIGATION AND SAFE SUBMISSION
     btnNext.addEventListener('click', () => {
         const q = questions[currentIndex];
         let answerToSave = "";
@@ -254,10 +327,9 @@ document.addEventListener('DOMContentLoaded', () => {
             targetPhrase: q.targetPhrase || '',
         });
 
-        // Avanzar a la siguiente pregunta
+        // Advance to next question
         currentIndex++;
 
-        // Si hay más preguntas, guardamos progreso y cargamos la siguiente
         if (currentIndex < questions.length) {
             localStorage.setItem('diagnostic_progress', JSON.stringify({
                 currentIndex: currentIndex,
@@ -265,37 +337,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
             loadQuestion();
         } else {
-            // TEST FINALIZADO
+            // TEST FINISHED
             btnNext.disabled = true;
             btnNext.textContent = "Evaluando...";
-            
-            // Limpiar caché
-            localStorage.removeItem('diagnostic_progress');
-
-            // Crear formulario oculto para enviar a Django
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/diagnosis/results/'; // URL de tu vista procesadora
-            
-            const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-            const csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden';
-            csrfInput.name = 'csrfmiddlewaretoken';
-            csrfInput.value = csrfTokenElement ? csrfTokenElement.value : '';
-            form.appendChild(csrfInput);
-
-            // Pasamos todo el arreglo de respuestas como un string JSON
-            const dataInput = document.createElement('input');
-            dataInput.type = 'hidden';
-            dataInput.name = 'answers_data';
-            dataInput.value = JSON.stringify(userAnswers); 
-            form.appendChild(dataInput);
-
-            document.body.appendChild(form);
-            form.submit(); 
+            submitDiagnostic(userAnswers);
         }
     });
 
-    // Arrancar el sistema
+    // Boot
     inicializarExamen();
 });

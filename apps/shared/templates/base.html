@@ -24,7 +24,7 @@
                         <span>🏠</span> Dashboard
                     </a>
                     <a href="{% url 'learning:router_nivel' %}" class="nav-item {% if request.resolver_match.namespace == 'learning' %}active{% endif %}">
-                        <span>📚</span> My Level
+                        <span>📚</span> Learning Modules
                     </a>
                     <a href="{% url 'progress:detail' %}" class="nav-item {% if request.resolver_match.view_name == 'progress:detail' %}active{% endif %}">
                         <span>📊</span> Progress

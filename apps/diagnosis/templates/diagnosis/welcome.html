@@ -3,44 +3,45 @@
 
 {% block content %}
 <div style="display: flex; min-height: 100%; align-items: center; justify-content: center;">
-    
+
     <div style="background: #FFFFFF; border-radius: 20px; border: 1px solid var(--g200); padding: 44px; max-width: 680px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.06); height: fit-content;">
-        
-        <h1 style="font-size: 26px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Examen de Diagnóstico Inicial</h1>
-        <p style="font-size: 14px; color: var(--g500); margin: 0 0 32px 0;">Este examen determinará tu nivel de clasificación en el marco MCER (A1, A2 o B1).</p>
-        
+
+        <h1 style="font-size: 26px; font-weight: 800; color: var(--g800); margin: 0 0 8px 0;">Initial Diagnostic Test</h1>
+        <p style="font-size: 14px; color: var(--g500); margin: 0 0 32px 0;">This test will determine your CEFR classification level (A1, A2 or B1).</p>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px;">
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px;">
-                <span style="font-size: 12px; color: var(--g400); font-weight: 600; display: block; margin-bottom: 4px;">DURACIÓN ESTIMADA</span>
-                <span style="font-size: 16px; color: var(--g700); font-weight: 700;">20 - 30 minutos</span>
+                <span style="font-size: 12px; color: var(--g400); font-weight: 600; display: block; margin-bottom: 4px;">ESTIMATED DURATION</span>
+                <span style="font-size: 16px; color: var(--g700); font-weight: 700;">20 - 30 minutes</span>
             </div>
             <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 16px;">
-                <span style="font-size: 12px; color: var(--g400); font-weight: 600; display: block; margin-bottom: 4px;">RESTRICCIÓN</span>
-                <span style="font-size: 16px; color: var(--g700); font-weight: 700;">No repetible (1 intento)</span>
+                <span style="font-size: 12px; color: var(--g400); font-weight: 600; display: block; margin-bottom: 4px;">RESTRICTION</span>
+                <span style="font-size: 16px; color: var(--g700); font-weight: 700;">Non-repeatable (1 attempt)</span>
             </div>
         </div>
 
-        <h3 style="font-size: 15px; font-weight: 700; color: var(--g700); margin: 0 0 12px 0;">Estructura de Evaluación</h3>
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--g700); margin: 0 0 12px 0;">Evaluation Structure</h3>
         <div style="background: var(--g50); border: 1px solid var(--g200); border-radius: 12px; padding: 20px; margin-bottom: 32px;">
             <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: var(--g600); line-height: 1.8;">
-                <li><strong>Sección Speaking (40%):</strong> Grabación de 5 frases con análisis de coincidencia fonética STT.</li>
-                <li><strong>Sección Listening (40%):</strong> Comprensión auditiva de 5 audios TTS con selección múltiple.</li>
-                <li><strong>Sección Vocabulario (20%):</strong> 10 reactivos de completar oraciones contextualizadas.</li>
+                <li><strong>Speaking Section (25%):</strong> Record 5 phrases with phonetic matching analysis.</li>
+                <li><strong>Listening Section (25%):</strong> Audio comprehension with multiple choice questions.</li>
+                <li><strong>Vocabulary Section (25%):</strong> Contextual sentence completion exercises.</li>
+                <li><strong>Writing Section (25%):</strong> Written expression evaluated by AI.</li>
             </ul>
         </div>
 
         <div id="mic-status-box" style="background: var(--danger-light); border: 1.5px dashed var(--danger); border-radius: 12px; padding: 18px; margin-bottom: 28px; display: flex; align-items: start; gap: 12px;">
             <span id="mic-icon" style="font-size: 20px;">🔒</span>
             <div>
-                <h4 id="mic-title" style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: var(--g800);">Se requieren permisos de micrófono</h4>
+                <h4 id="mic-title" style="margin: 0 0 4px 0; font-size: 14px; font-weight: 700; color: var(--g800);">Microphone permission required</h4>
                 <p id="mic-desc" style="margin: 0; font-size: 12px; color: var(--g600); line-height: 1.5;">
-                    Por favor, haz clic en el aviso del navegador para permitir el acceso al micrófono. Si usas Chrome o Firefox, ve al icono del candado en la barra de direcciones y activa el selector de "Micrófono".
+                    Please click the browser prompt to allow microphone access. If using Chrome or Firefox, go to the lock icon in the address bar and enable the "Microphone" toggle.
                 </p>
             </div>
         </div>
 
         <button id="start-test-btn" disabled style="width: 100%; padding: 13px 20px; border-radius: 10px; border: none; background: var(--g300); color: var(--g500); font-size: 15px; font-weight: 700; cursor: not-allowed; transition: all 0.2s ease;">
-            Verificando hardware...
+            Checking hardware...
         </button>
     </div>
 </div>

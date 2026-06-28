@@ -60,6 +60,9 @@ class AIWritingEvaluator:
             "Return ONLY valid JSON with EXACTLY these keys: "
             '{"grammar": <int 0-100>, "coherence": <int 0-100>, "vocabulary": <int 0-100>, '
             '"suggestions": "<brief feedback in Spanish>"}. '
+            "IMPORTANT: In 'suggestions', explain errors in Spanish and describe what the correct form should be, "
+            "but NEVER write example sentences or corrected phrases in English. "
+            "The student must not be able to copy-paste a correct answer from your feedback. "
             "No other keys. No prose outside the JSON."
         )
         user_msg = f"Writing prompt: {prompt_topic}\n\nStudent's text:\n{text}"
@@ -92,6 +95,9 @@ class AIWritingEvaluator:
             "Return ONLY a valid JSON ARRAY. Each element must have EXACTLY these keys: "
             '{"index": <int>, "grammar": <int 0-100>, "coherence": <int 0-100>, '
             '"vocabulary": <int 0-100>, "suggestions": "<brief feedback in Spanish>"}. '
+            "IMPORTANT: In 'suggestions', explain errors in Spanish and describe what the correct form should be, "
+            "but NEVER write example sentences or corrected phrases in English. "
+            "The student must not be able to copy-paste a correct answer from your feedback. "
             "Evaluate each item independently. No prose outside the JSON array."
         )
 

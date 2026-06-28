@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
             wrapper.innerHTML =
                 '<p style="font-size:22px; font-weight:800; color:#10B981; margin:0 0 8px 0;">🎉 Submodule completed!</p>' +
                 '<p style="font-size:14px; color:#6B7280; margin:0 0 20px 0;">You passed all writing exercises.</p>' +
-                '<a href="' + nextUrl + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none; margin-right:12px;">Next submodule →</a>' +
+                '<a href="' + nextUrl + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--primary); color:#FFFFFF; font-size:15px; font-weight:700; text-decoration:none; margin-right:12px;">Next submodule</a>' +
                 '<a href="' + DASHBOARD_URL + '" style="display:inline-block; padding:12px 28px; border-radius:10px; background:var(--g200); color:var(--g700); font-size:15px; font-weight:700; text-decoration:none;">Back to Dashboard</a>';
         } else {
             wrapper.innerHTML =
@@ -101,13 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (completed.size >= totalExercises) {
-            btnNext.textContent = '🎉 Submodule completed →';
+            btnNext.textContent = '🎉 Submodule completed';
             btnNext.style.display = 'inline-block';
             btnNext.onclick = () => showCompletionMessage(data.submodulo_completado);
         } else {
             const next = findNextPending(currentIndex);
             if (next !== -1 && data.aprobado) {
-                btnNext.textContent = 'Next exercise →';
+                btnNext.textContent = 'Next exercise';
                 btnNext.style.display = 'inline-block';
                 btnNext.onclick = () => loadExercise(next);
             } else if (!data.aprobado) {

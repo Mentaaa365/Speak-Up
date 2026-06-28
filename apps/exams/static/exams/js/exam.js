@@ -14,6 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const progressPercentage = document.getElementById('progress-percentage');
+    const inlineAlert = document.getElementById('inline-alert');
+
+    const showInlineAlert = (msg) => {
+        inlineAlert.textContent = '⚠️ ' + msg;
+        inlineAlert.style.display = 'block';
+        setTimeout(() => { inlineAlert.style.display = 'none'; }, 4000);
+    };
     const btnTts = document.getElementById('btn-tts');
     const btnStt = document.getElementById('btn-stt');
     const sttFeedback = document.getElementById('stt-feedback');
@@ -225,14 +232,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (q.type === 'WRITING') {
             const textarea = document.getElementById('writing-answer');
-            if (!textarea || !textarea.value.trim()) return alert("Por favor, escribe tu respuesta para continuar.");
+            if (!textarea || !textarea.value.trim()) return showInlineAlert("Please write your answer before continuing.");
             answerToSave = textarea.value.trim();
         } else if (q.type === 'SPEAKING') {
-            if (!lastTranscript) return alert("Por favor, graba tu respuesta usando el micrófono.");
+            if (!lastTranscript) return showInlineAlert("Please record your answer using the microphone.");
             answerToSave = lastTranscript;
         } else {
             const selected = document.querySelector('input[name="answer"]:checked');
-            if (!selected) return alert("Por favor, selecciona una opción para continuar.");
+            if (!selected) return showInlineAlert("Please select an option before continuing.");
             answerToSave = selected.value;
         }
 

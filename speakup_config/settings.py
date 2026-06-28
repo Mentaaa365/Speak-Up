@@ -70,6 +70,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+CSRF_USE_SESSIONS = True
+
 ROOT_URLCONF = "speakup_config.urls"
 
 TEMPLATES = [

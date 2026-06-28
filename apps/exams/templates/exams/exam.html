@@ -9,7 +9,7 @@
         <p style="font-size: 18px; margin: 0 0 8px 0;">⚠️</p>
         <p style="font-size: 15px; font-weight: 600; color: #991B1B; margin: 0 0 20px 0;">{{ error }}</p>
         <a href="{% url 'progress:dashboard' %}" style="font-size: 14px; font-weight: 700; color: #4F46E5; text-decoration: none;">
-            ← Back to Dashboard
+            Back to Dashboard
         </a>
     </div>
 
@@ -130,6 +130,8 @@
             <p id="stt-feedback" style="font-size: 14px; color: var(--g600); font-style: italic; display: none;"></p>
         </article>
 
+        <div id="inline-alert" style="display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:14px; font-weight:600; color:#991B1B; text-align:center;"></div>
+
         <form id="exam-form">
             {% csrf_token %}
             <section id="options-container" style="display: grid; grid-template-columns: 1fr; gap: 14px;">
@@ -141,7 +143,7 @@
         <a href="{% url 'progress:dashboard' %}" style="padding: 14px 24px; border-radius: 10px; border: 1.5px solid var(--g300); text-decoration: none; color: var(--g600); font-weight: 700;">Quit exam</a>
 
         <button id="btn-next" type="button" style="padding: 14px 32px; border-radius: 10px; border: none; background: var(--primary); color: #FFFFFF; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);">
-            Next Question ➔
+            Next Question
         </button>
     </footer>
 

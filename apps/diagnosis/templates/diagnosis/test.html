@@ -10,12 +10,18 @@
         <p style="font-size: 15px; color: var(--g500); margin: 0;">Discover your initial English level. Turn on your microphone and speakers.</p>
     </header>
 
+    <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+        <div style="background: var(--primary-light); border: 1.5px solid var(--primary); border-radius: 12px; padding: 10px 24px; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px; font-weight: 700; color: var(--primary);">⏱ Time remaining:</span>
+            <span id="diagnosis-timer" style="font-size: 22px; font-weight: 900; color: var(--primary); font-variant-numeric: tabular-nums;">30:00</span>
+        </div>
+    </div>
+
     <section style="background: #FFFFFF; border: 1px solid var(--g200); border-radius: 16px; padding: 32px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
-        
+
         <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
             <span id="progress-text" style="font-size: 14px; font-weight: 700; color: var(--g600);">Question 1 of X</span>
             <span id="progress-percentage" style="font-size: 14px; font-weight: 800; color: var(--primary);">0%</span>
-            <span id="diagnosis-timer" style="font-size: 14px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums;">30:00</span>
         </header>
         <div style="height: 8px; background: var(--g100); border-radius: 999px; margin-bottom: 32px;">
             <div id="progress-bar" style="height: 100%; width: 0%; background: var(--primary); border-radius: 999px; transition: width 0.3s ease;"></div>
@@ -39,6 +45,8 @@
 
         </article>
 
+        <div id="inline-alert" style="display:none; background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:14px; font-weight:600; color:#991B1B; text-align:center;"></div>
+
         <form id="diagnostic-form">
             {% csrf_token %}
             
@@ -51,7 +59,7 @@
         <a href="{% url 'progress:dashboard' %}" style="padding: 14px 24px; border-radius: 10px; border: 1.5px solid var(--g300); text-decoration: none; color: var(--g600); font-weight: 700;">Quit test</a>
         
         <button id="btn-next" type="button" style="padding: 14px 32px; border-radius: 10px; border: none; background: var(--primary); color: #FFFFFF; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);">
-            Next Question ➔
+            Next Question
         </button>
     </footer>
 

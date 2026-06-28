@@ -10,8 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let playCount = 0;
     let lastTranscript = "";
 
-    // Timer state
-    let secondsLeft   = DIAGNOSIS_TIMEOUT_SECONDS;
+    // Timer state (persist across refresh)
+    const savedTimer = localStorage.getItem('diagnostic_timer');
+    let secondsLeft  = savedTimer ? Math.max(0, parseInt(savedTimer, 10)) : DIAGNOSIS_TIMEOUT_SECONDS;
     let timerInterval = null;
     const timerEl     = document.getElementById('diagnosis-timer');
 
@@ -23,6 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
     const progressPercentage = document.getElementById('progress-percentage');
+    const inlineAlert = document.getElementById('inline-alert');
+
+    const showInlineAlert = (msg) => {
+        inlineAlert.textContent = '⚠️ ' + msg;
+        inlineAlert.style.display = 'block';
+        setTimeout(() => { inlineAlert.style.display = 'none'; }, 4000);
+    };
 
     const btnTts = document.getElementById('btn-tts');
     const btnStt = document.getElementById('btn-stt');
@@ -58,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         timerEl.textContent = formatTime(secondsLeft);
         timerInterval = setInterval(() => {
             secondsLeft--;
+            localStorage.setItem('diagnostic_timer', secondsLeft);
             timerEl.textContent = formatTime(secondsLeft);
             if (secondsLeft <= 300) {
                 timerEl.style.color = 'var(--danger)';
@@ -70,28 +79,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── FORM SUBMISSION ────────────────────────────────────────────────────────
 
+    const _csrfTokenCached = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+    const getCsrfToken = () => {
+        if (_csrfTokenCached) return _csrfTokenCached;
+        const el = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (el && el.value) return el.value;
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : '';
+    };
+
     const submitDiagnostic = (answers) => {
         clearInterval(timerInterval);
         localStorage.removeItem('diagnostic_progress');
+        localStorage.removeItem('diagnostic_timer');
 
-        const form = document.createElement('form');
-        form.method = 'POST';
+        const form = document.querySelector('#diagnostic-form');
+        const csrfEl = form.querySelector('[name=csrfmiddlewaretoken]');
+        const token = csrfEl ? csrfEl.value : _csrfTokenCached;
+
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'answers_data';
+        hiddenInput.value = JSON.stringify(answers);
+        form.appendChild(hiddenInput);
+
         form.action = '/diagnosis/results/';
-
-        const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrfmiddlewaretoken';
-        csrfInput.value = csrfTokenElement ? csrfTokenElement.value : '';
-        form.appendChild(csrfInput);
-
-        const dataInput = document.createElement('input');
-        dataInput.type = 'hidden';
-        dataInput.name = 'answers_data';
-        dataInput.value = JSON.stringify(answers);
-        form.appendChild(dataInput);
-
-        document.body.appendChild(form);
+        form.method = 'POST';
         form.submit();
     };
 
@@ -122,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error("Error al cargar:", error);
-                alert("Error al conectar con la base de datos.");
+                showInlineAlert("Database connection error.");
             });
     };
 
@@ -308,14 +321,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (q.type === 'WRITING') {
             const textarea = document.getElementById('writing-answer');
-            if (!textarea || !textarea.value.trim()) return alert("Por favor, escribe tu respuesta para continuar.");
+            if (!textarea || !textarea.value.trim()) return showInlineAlert("Please write your answer before continuing.");
             answerToSave = textarea.value.trim();
         } else if (q.type === 'SPEAKING') {
-            if (!lastTranscript) return alert("Por favor, graba tu respuesta usando el micrófono.");
+            if (!lastTranscript) return showInlineAlert("Please record your answer using the microphone.");
             answerToSave = lastTranscript;
         } else {
             const selected = document.querySelector('input[name="answer"]:checked');
-            if (!selected) return alert("Por favor, selecciona una opción para continuar.");
+            if (!selected) return showInlineAlert("Please select an option before continuing.");
             answerToSave = selected.value;
         }
 

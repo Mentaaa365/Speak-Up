@@ -5,7 +5,9 @@ import random
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.generic import TemplateView
 
 from apps.learning.writing_evaluator import AIEvaluationError, AIWritingEvaluator
@@ -53,6 +55,7 @@ class DiagnosisWelcomeView(LoginRequiredMixin, TemplateView):
         return super().dispatch(request, *args, **kwargs)
 
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class DiagnosisTestView(LoginRequiredMixin, TemplateView):
     template_name = 'diagnosis/test.html'
 
@@ -299,10 +302,10 @@ class DiagnosisResultsView(LoginRequiredMixin, TemplateView):
         request.session.pop('examen_diagnostico_ids', None)
 
         context = {
-            'score_speaking': score_speaking,
-            'score_listening': score_listening,
-            'score_vocabulary': score_vocab,
-            'score_writing': score_writing,
+            'score_speaking': round(score_speaking / 25 * 100),
+            'score_listening': round(score_listening / 25 * 100),
+            'score_vocabulary': round(score_vocab / 25 * 100),
+            'score_writing': round(score_writing / 25 * 100),
             'score_total': total,
             'writing_pending': writing_pending,
             'nivel_asignado': nivel,
